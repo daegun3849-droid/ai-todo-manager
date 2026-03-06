@@ -92,7 +92,7 @@ const LoginContent = () => {
       <div className="mb-6 text-center">
         <div className="text-5xl mb-2">✅</div>
         <h1 className="text-2xl font-bold">AI Todo Manager</h1>
-        <p className="text-gray-500">스마트한 할 일 관리</p>
+        <p className="text-gray-500">AI가 도와주는 스마트한 할 일 관리</p>
       </div>
 
       <div className="bg-white rounded-xl shadow p-8 w-full max-w-md">
