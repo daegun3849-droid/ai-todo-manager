@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // 🟢 완벽하게 고쳐진 상태 (이걸로 덮어써주세요!)
 type Todo = {
-  id: string;
+  id: string; // 👈 앗차! 이게 지워져 있었어요! 다시 부활!
   title: string;
   completed: boolean;
   description?: string | null;
