@@ -4,32 +4,28 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-// 🟢 완벽하게 고쳐진 상태 (이걸로 덮어써주세요!)
+// 📦 Vercel 문지기 완전 프리패스용 데이터 모양! (에러 철통 방어)
 type Todo = {
-  id: string; // 👈 앗차! 이게 지워져 있었어요! 다시 부활!
+  id: string;
   title: string;
   completed: boolean;
-  description?: string | null;
-  due_date?: string | null;
-  created_date?: string | null; 
+  description: string | null;
+  due_date: string | null;
+  created_date: string | null; 
 };
 
 // 🌟 마법 1: 화면에 '오전/오후 00시 00분'으로 예쁘게 보여주는 번역기
-const formatDisplayDate = (dateString?: string) => {
+const formatDisplayDate = (dateString?: string | null) => {
   if (!dateString) return "";
   const date = new Date(dateString);
   return date.toLocaleString('ko-KR', { 
-    year: 'numeric', 
-    month: 'numeric', 
-    day: 'numeric', 
-    hour: 'numeric', 
-    minute: 'numeric', 
-    hour12: true // 👈 이게 바로 오전/오후를 표시해주는 마법의 스위치입니다!
+    year: 'numeric', month: 'numeric', day: 'numeric', 
+    hour: 'numeric', minute: 'numeric', hour12: true 
   });
 };
 
 // 🌟 마법 2: DB의 시간을 입력창(시계)에 맞게 변환해 주는 번역기
-const formatForInput = (dateString?: string) => {
+const formatForInput = (dateString?: string | null) => {
   if (!dateString) return "";
   const date = new Date(dateString);
   const offset = date.getTimezoneOffset() * 60000;
@@ -106,7 +102,6 @@ export default function Home() {
     setEditingId(todo.id);
     setEditTitle(todo.title);
     setEditDescription(todo.description || "");
-    // ⏰ 수정할 때 날짜뿐만 아니라 '시간'도 그대로 가져오게 바꿨습니다!
     setEditDueDate(formatForInput(todo.due_date)); 
     setEditCreatedDate(formatForInput(todo.created_date)); 
   };
@@ -118,7 +113,7 @@ export default function Home() {
       title: editTitle,
       description: editDescription || null,
       due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
-      created_date: editCreatedDate ? new Date(editCreatedDate).toISOString() : undefined 
+      created_date: editCreatedDate ? new Date(editCreatedDate).toISOString() : null // 👈 여기서 에러나던 것도 완벽 수정!
     };
 
     const { error } = await supabase.from('todos').update(updatedData).eq('id', id);
@@ -159,7 +154,6 @@ export default function Home() {
         />
         <div className="flex gap-2 items-center">
           <span className="text-sm font-bold text-gray-500 whitespace-nowrap">마감 시간:</span>
-          {/* ⏰ 타입을 date에서 'datetime-local'로 바꿨습니다! */}
           <input 
             type="datetime-local" value={dueDateValue} onChange={(e) => setDueDateValue(e.target.value)} disabled={!user}
             className="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-600 disabled:bg-gray-100"
@@ -203,7 +197,6 @@ export default function Home() {
                       
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-green-600 whitespace-nowrap w-16">🟢 시작:</span>
-                        {/* ⏰ 시계 모양 입력창으로 업그레이드! */}
                         <input 
                           type="datetime-local" value={editCreatedDate} onChange={(e) => setEditCreatedDate(e.target.value)}
                           className="flex-1 p-1.5 border border-green-300 rounded text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -243,7 +236,6 @@ export default function Home() {
                           <div className="flex flex-col gap-1 mt-2">
                             {todo.created_date && (
                               <span className="text-xs font-semibold text-gray-600 bg-green-50 px-2 py-1 rounded w-fit">
-                                {/* ⏰ 오전/오후 번역기를 거쳐서 화면에 짠! */}
                                 🟢 시작: {formatDisplayDate(todo.created_date)}
                               </span>
                             )}
