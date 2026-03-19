@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
+// 🟢 완벽하게 고쳐진 상태 (이걸로 덮어써주세요!)
 type Todo = {
   id: string;
   title: string;
   completed: boolean;
-  description?: string | null;  // 👈 | null 추가!
-  due_date?: string | null;     // 👈 | null 추가!
-  created_date?: string | null; // 👈 | null 추가!
+  description?: string | null;
+  due_date?: string | null;
+  created_date?: string | null; 
 };
 
 // 🌟 마법 1: 화면에 '오전/오후 00시 00분'으로 예쁘게 보여주는 번역기
