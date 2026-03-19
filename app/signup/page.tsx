@@ -1,310 +1,145 @@
-/**
- * 회원가입 페이지
- * PRD 기반: 이메일/비밀번호 회원가입, 서비스 로고·소개, 로그인 링크
- */
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
-import { Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
-/**
- * 회원가입 폼 데이터 타입
- */
-interface SignupFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
-
-const SignupPage = () => {
-  const router = useRouter();
-  const [formData, setFormData] = useState<SignupFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  /**
-   * 폼 입력 핸들러
-   */
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(null);
-  };
-
-  /**
-   * 비밀번호 유효성 검사
-   */
-  const validatePassword = (password: string): string | null => {
-    if (password.length < 6) {
-      return '비밀번호는 최소 6자 이상이어야 합니다.';
-    }
-    return null;
-  };
-
-  /**
-   * 회원가입 제출 핸들러
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!formData.name.trim()) {
-      setError('이름을 입력해 주세요.');
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      setError('이메일을 입력해 주세요.');
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('올바른 이메일 형식이 아닙니다.');
-      return;
-    }
-
-    const passwordError = validatePassword(formData.password);
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      const supabase = createClient();
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: { full_name: formData.name.trim() },
-        },
-      });
-
-      if (signUpError) {
-        if (signUpError.message.includes('already registered') || signUpError.message.includes('User already registered')) {
-          throw new Error('이미 사용 중인 이메일입니다. 다른 이메일을 사용하거나 로그인해 주세요.');
-        }
-        if (signUpError.message.includes('Password should be')) {
-          throw new Error('비밀번호가 보안 정책을 충족하지 않습니다. 더 강한 비밀번호를 사용해 주세요.');
-        }
-        throw new Error(signUpError.message);
-      }
-
-      // 이메일 확인이 필요한 경우 session이 null로 반환됨
-      if (data.user && !data.session) {
-        setSuccess(true);
-      } else if (data.session) {
-        // 이메일 확인 없이 즉시 로그인된 경우
-        router.push('/');
-      } else {
-        setSuccess(true);
-      }
-    } catch (err) {
-      console.error('회원가입 실패:', err);
-      setError(err instanceof Error ? err.message : '회원가입에 실패했습니다. 다시 시도해 주세요.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold">회원가입 완료!</h2>
-                <p className="text-gray-500 text-sm">
-                  이메일 인증 링크를 확인해 주세요.
-                  <br />
-                  인증 후 로그인할 수 있습니다.
-                </p>
-              </div>
-              <Button asChild className="w-full">
-                <Link href="/login">로그인 페이지로 이동</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      {/* 서비스 로고와 간단한 소개 */}
-      <div className="mb-6 text-center">
-        <div className="text-5xl mb-2">✅</div>
-        <h1 className="text-2xl font-bold">AI Todo Manager</h1>
-        <p className="text-gray-500">
-          기록 → 실행 → 분석 → 개선, AI가 도와주는 스마트한 할 일 관리
-        </p>
-      </div>
-
-      {/* 회원가입 폼 */}
-      <Card className="bg-white w-full max-w-md shadow">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-xl font-bold text-center">회원가입</CardTitle>
-          <CardDescription className="text-center">
-            새 계정을 만들어 생산성 루프를 경험해 보세요
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="name">이름</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="이름을 입력하세요"
-                value={formData.name}
-                onChange={handleChange}
-                disabled={isLoading}
-                autoComplete="name"
-                className="h-10"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="이메일을 입력하세요"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={isLoading}
-                autoComplete="email"
-                className="h-10"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
-              <InputGroup className="h-10">
-                <InputGroupInput
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="비밀번호를 입력하세요 (최소 6자)"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                  required
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">비밀번호 확인</Label>
-              <InputGroup className="h-10">
-                <InputGroupInput
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="비밀번호를 다시 입력하세요"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  autoComplete="new-password"
-                  required
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    aria-label={showConfirmPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </div>
-
-            <Button type="submit" className="w-full h-10" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  가입 중...
-                </>
-              ) : (
-                '회원가입 →'
-              )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col">
-          <div className="text-center text-sm text-gray-500">이미 계정이 있으신가요?</div>
-          <Button variant="outline" asChild className="w-full mt-2">
-            <Link href="/login">로그인</Link>
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
-  );
+// 📦 우리가 다룰 데이터의 모양을 정의합니다.
+type Todo = {
+  id: string;
+  title: string;
 };
 
-export default SignupPage;
+export default function Home() {
+  const [inputValue, setInputValue] = useState("");
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [user, setUser] = useState<any>(null); // 로그인한 유저 정보 저장
+
+  const supabase = createClient();
+
+  // 🧠 화면이 처음 켜질 때 딱 한 번 실행되는 기억력 회복 마법
+  useEffect(() => {
+    const fetchUserAndTodos = async () => {
+      // 1. 현재 접속한 사람이 VIP(로그인 유저)인지 확인합니다.
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      // 2. VIP가 맞다면, 창고(DB)에서 내 할 일 목록을 싹 가져옵니다.
+      if (user) {
+        const { data, error } = await supabase
+          .from('todos') // 창고 이름
+          .select('id, title') // 가져올 물건 이름표
+          .eq('user_id', user.id) // 내 물건만!
+          .order('created_date', { ascending: true }); // 옛날에 쓴 것부터 순서대로!
+
+        if (!error && data) {
+          setTodos(data);
+        }
+      }
+    };
+
+    fetchUserAndTodos();
+  }, []);
+
+  // ⚡ 할 일을 추가할 때 실행되는 마법
+  const handleAddTodo = async () => {
+    if (inputValue.trim() === "" || !user) return; // 빈칸이거나 로그인 안 했으면 튕겨내기!
+
+    // 1. 창고에 넣을 새 박스 포장하기
+    const newTodo = {
+      user_id: user.id, // 이건 내 거다! 하고 이름표 붙이기
+      title: inputValue,
+    };
+
+    // 2. 집주인에게 박스 던져주기 (DB 삽입)
+    const { data, error } = await supabase
+      .from('todos')
+      .insert([newTodo])
+      .select()
+      .single();
+
+    if (error) {
+      alert("앗! 저장에 실패했어요: " + error.message);
+    } else if (data) {
+      // 3. 저장이 성공하면 내 화면 목록에도 띄워주기
+      setTodos([...todos, { id: data.id, title: data.title }]);
+      setInputValue(""); // 입력창 비우기
+    }
+  };
+
+  // 🗑️ 할 일을 삭제할 때 실행되는 마법
+  const handleDeleteTodo = async (idToRemove: string) => {
+    // 1. 창고에서 먼저 태워버리기 (DB 삭제)
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', idToRemove);
+
+    if (!error) {
+      // 2. 창고에서 지워졌으면 내 화면에서도 쓱 지우기
+      setTodos(todos.filter((todo) => todo.id !== idToRemove));
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-24 bg-gray-50 text-gray-900">
+      
+      <h1 className="text-4xl font-bold mb-6">
+        ✨ 우당탕탕 AI 투두 매니저
+      </h1>
+
+      {/* 🎭 로그인 상태에 따라 안내 문구가 바뀝니다! */}
+      {!user ? (
+         <div className="flex gap-4 mb-8">
+            <Link href="/login" className="px-5 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-colors shadow-sm">
+              로그인하러 가기
+            </Link>
+         </div>
+      ) : (
+        <p className="mb-8 text-lg font-semibold text-blue-600">
+          환영합니다, VIP {user.email} 님! 👋
+        </p>
+      )}
+
+      <div className="w-full max-w-md flex gap-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
+          placeholder={user ? "오늘 해치울 일은 무엇인가요?" : "로그인해야 입력할 수 있어요 🔒"}
+          disabled={!user} // 로그인 안 하면 입력창 잠금!
+          className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200"
+        />
+        <button 
+          onClick={handleAddTodo}
+          disabled={!user}
+          className="bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700 shadow-sm transition-colors disabled:bg-gray-400"
+        >
+          추가
+        </button>
+      </div>
+
+      <div className="w-full max-w-md mt-8">
+        {todos.length === 0 ? (
+          <p className="text-center text-gray-500">아직 등록된 할 일이 없네요. 뒹굴거려도 좋습니다! 🛌</p>
+        ) : (
+          <ul className="space-y-3">
+            {todos.map((todo) => (
+              <li key={todo.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm flex justify-between items-center">
+                <span className="font-medium">{todo.title}</span>
+                <button 
+                  onClick={() => handleDeleteTodo(todo.id)}
+                  className="text-red-500 hover:text-red-700 text-sm font-bold"
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+    </main>
+  );
+}

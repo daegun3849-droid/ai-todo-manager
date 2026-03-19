@@ -1,536 +1,278 @@
-/**
- * 메인 대시보드 페이지
- * Supabase 완전 연동: CRUD + 검색/필터/정렬 + 삭제확인 + 오류알림 + 변경 후 재조회
- */
-'use client';
+"use client";
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { TodoList } from '@/components/todo/TodoList';
-import { TodoForm } from '@/components/todo/TodoForm';
-import { Header } from '@/components/dashboard/Header';
-import { Toolbar } from '@/components/dashboard/Toolbar';
-import type { StatusFilter, SortOption } from '@/components/dashboard/Toolbar';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Plus, X, LayoutList, CheckCircle2, Timer } from 'lucide-react';
-import type { Todo, TodoInsert, Priority } from '@/types/todo';
-import { AiSummarySection } from '@/components/dashboard/AiSummarySection';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
-const Page = () => {
-  const router = useRouter();
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userId, setUserId] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  /** 할일 추가/수정 다이얼로그 */
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-
-  /** 삭제 확인 다이얼로그 */
-  const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null);
-
-  /** CRUD 오류/성공 알림 */
-  const [notification, setNotification] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
-  const [sortOption, setSortOption] = useState<SortOption>('created_date');
-  const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'in_progress'>('all');
-
-  /**
-   * 알림 표시 (3초 후 자동 해제)
-   */
-  const showNotification = useCallback((type: 'error' | 'success', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
-  }, []);
-
-  /**
-   * 할 일 목록 재조회
-   */
-  const fetchTodos = useCallback(async (uid: string) => {
-    try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_date', { ascending: false });
-
-      if (error) throw error;
-      setTodos(data ?? []);
-    } catch (err) {
-      console.error('할 일 목록 재조회 실패:', err);
-      showNotification('error', '목록을 불러올 수 없습니다. 네트워크를 확인해 주세요.');
-    }
-  }, [showNotification]);
-
-  /**
-   * 초기 데이터 로드 (사용자 정보 + 할 일 목록)
-   */
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          router.push('/login');
-          return;
-        }
-
-        setUserName(user.user_metadata?.full_name ?? '');
-        setUserEmail(user.email ?? '');
-        setUserId(user.id);
-        await fetchTodos(user.id);
-      } catch (err) {
-        console.error('초기 데이터 로드 실패:', err);
-        setLoadError('데이터를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [router, fetchTodos]);
-
-  /**
-   * 인증 상태 실시간 감지
-   */
-  useEffect(() => {
-    const supabase = createClient();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        router.push('/login');
-        return;
-      }
-      if (event === 'SIGNED_IN' && session) {
-        setUserName(session.user.user_metadata?.full_name ?? '');
-        setUserEmail(session.user.email ?? '');
-        setUserId(session.user.id);
-      }
-      if (event === 'TOKEN_REFRESHED' && session) {
-        setUserEmail(session.user.email ?? '');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [router]);
-
-  /** 탭 카운트 */
-  const tabCounts = useMemo(() => ({
-    all: todos.length,
-    completed: todos.filter((t) => t.completed).length,
-    in_progress: todos.filter((t) => !t.completed).length,
-  }), [todos]);
-
-  /**
-   * 탭 + 검색 + 필터 + 정렬 적용된 목록
-   */
-  const filteredTodos = useMemo(() => {
-    let result = [...todos];
-
-    // 탭 필터
-    if (activeTab === 'completed') result = result.filter((t) => t.completed);
-    else if (activeTab === 'in_progress') result = result.filter((t) => !t.completed);
-
-    // 제목 검색
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((t) => t.title.toLowerCase().includes(q));
-    }
-
-    // 상태 필터
-    if (statusFilter === 'in_progress') {
-      result = result.filter(
-        (t) => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())
-      );
-    } else if (statusFilter === 'completed') {
-      result = result.filter((t) => t.completed);
-    } else if (statusFilter === 'overdue') {
-      result = result.filter(
-        (t) => !t.completed && t.due_date && new Date(t.due_date) < new Date()
-      );
-    }
-
-    // 우선순위 필터
-    if (priorityFilter !== 'all') {
-      result = result.filter((t) => t.priority === priorityFilter);
-    }
-
-    // 정렬
-    const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
-    result.sort((a, b) => {
-      if (sortOption === 'priority') return priorityOrder[a.priority] - priorityOrder[b.priority];
-      if (sortOption === 'due_date') {
-        const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-        const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-        return da - db;
-      }
-      if (sortOption === 'title') return a.title.localeCompare(b.title, 'ko');
-      return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
-    });
-
-    return result;
-  }, [todos, activeTab, searchQuery, statusFilter, priorityFilter, sortOption]);
-
-  const openForm = useCallback((todo?: Todo) => {
-    setEditingTodo(todo ?? null);
-    setIsFormOpen(true);
-  }, []);
-
-  const closeForm = useCallback(() => {
-    setIsFormOpen(false);
-    setEditingTodo(null);
-  }, []);
-
-  /**
-   * 할 일 생성
-   */
-  const handleAddTodo = useCallback(
-    async (data: TodoInsert) => {
-      try {
-        const supabase = createClient();
-        const { error } = await supabase.from('todos').insert({
-          user_id: userId,
-          title: data.title,
-          description: data.description ?? null,
-          due_date: data.due_date ?? null,
-          priority: data.priority,
-          category: data.category ?? [],
-          completed: false,
-        });
-
-        if (error) throw error;
-        await fetchTodos(userId);
-        closeForm();
-        showNotification('success', '할 일이 추가되었습니다.');
-      } catch (err) {
-        console.error('할 일 추가 실패:', err);
-        throw new Error('할 일을 추가할 수 없습니다. 다시 시도해 주세요.');
-      }
-    },
-    [userId, fetchTodos, closeForm, showNotification]
-  );
-
-  /**
-   * 할 일 수정
-   */
-  const handleUpdateTodo = useCallback(
-    async (data: TodoInsert) => {
-      if (!editingTodo) return;
-      try {
-        const supabase = createClient();
-
-        // userId 상태 대신 세션에서 직접 가져와 stale 클로저 문제 방지
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('인증이 만료되었습니다. 다시 로그인해 주세요.');
-
-        console.log('[updateTodo] 전달된 due_date:', data.due_date);
-        console.log('[updateTodo] todo id:', editingTodo.id);
-
-        const { error } = await supabase
-          .from('todos')
-          .update({
-            title: data.title,
-            description: data.description ?? null,
-            due_date: data.due_date ?? null,
-            priority: data.priority,
-            category: data.category ?? [],
-          })
-          .eq('id', editingTodo.id)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-        await fetchTodos(user.id);
-        closeForm();
-        showNotification('success', '할 일이 수정되었습니다.');
-      } catch (err) {
-        console.error('할 일 수정 실패:', err);
-        throw new Error(err instanceof Error ? err.message : '할 일을 수정할 수 없습니다. 다시 시도해 주세요.');
-      }
-    },
-    [editingTodo, fetchTodos, closeForm, showNotification]
-  );
-
-  const handleFormSubmit = useCallback(
-    async (data: TodoInsert) => {
-      if (editingTodo) {
-        await handleUpdateTodo(data);
-      } else {
-        await handleAddTodo(data);
-      }
-    },
-    [editingTodo, handleAddTodo, handleUpdateTodo]
-  );
-
-  /**
-   * 삭제 버튼 클릭 → 확인 다이얼로그 표시
-   */
-  const handleDeleteClick = useCallback((id: string) => {
-    setDeletingTodoId(id);
-  }, []);
-
-  /**
-   * 삭제 확인 → Supabase 삭제 실행 + 재조회
-   */
-  const handleDeleteConfirm = useCallback(async () => {
-    if (!deletingTodoId) return;
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('인증이 만료되었습니다.');
-
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', deletingTodoId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      await fetchTodos(user.id);
-      showNotification('success', '할 일이 삭제되었습니다.');
-    } catch (err) {
-      console.error('할 일 삭제 실패:', err);
-      showNotification('error', err instanceof Error ? err.message : '할 일을 삭제할 수 없습니다. 다시 시도해 주세요.');
-    } finally {
-      setDeletingTodoId(null);
-    }
-  }, [deletingTodoId, fetchTodos, showNotification]);
-
-  /**
-   * 완료 상태 토글
-   */
-  const handleToggleComplete = useCallback(
-    async (id: string, completed: boolean) => {
-      // 낙관적 업데이트 (즉각 UI 반영)
-      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
-      try {
-        const supabase = createClient();
-        const { error } = await supabase
-          .from('todos')
-          .update({ completed })
-          .eq('id', id)
-          .eq('user_id', userId);
-
-        if (error) throw error;
-      } catch (err) {
-        console.error('완료 상태 변경 실패:', err);
-        // 실패 시 롤백
-        setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
-        showNotification('error', '상태 변경에 실패했습니다. 다시 시도해 주세요.');
-      }
-    },
-    [userId, showNotification]
-  );
-
-  /**
-   * AI 요약 저장 (Supabase 업데이트 + 로컬 상태 반영)
-   */
-  const handleAiSummaryUpdate = useCallback(
-    async (id: string, summary: string) => {
-      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ai_summary: summary } : t)));
-      try {
-        const supabase = createClient();
-        const { error } = await supabase
-          .from('todos')
-          .update({ ai_summary: summary })
-          .eq('id', id)
-          .eq('user_id', userId);
-        if (error) throw error;
-      } catch (err) {
-        console.error('AI 요약 저장 실패:', err);
-        showNotification('error', 'AI 요약을 저장하지 못했습니다. 다시 시도해 주세요.');
-      }
-    },
-    [userId, showNotification]
-  );
-
-  /**
-   * 로그아웃
-   */
-  const handleLogout = useCallback(async () => {
-    const supabase = createClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) throw new Error('로그아웃에 실패했습니다.');
-    router.push('/login?logout=true');
-  }, [router]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3 text-gray-500">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
-          <p className="text-sm">불러오는 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-3">
-          <p className="text-red-500 font-medium">{loadError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-sm text-gray-500 underline"
-          >
-            다시 시도
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header userName={userName} userEmail={userEmail} onLogout={handleLogout} />
-
-      <main className="flex-1 p-4 md:p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-
-          {/* 페이지 제목 + 할일 추가 버튼 */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">할 일 목록</h1>
-            <Button onClick={() => openForm()} className="flex items-center gap-1">
-              <Plus className="h-4 w-4" />
-              할일 추가
-            </Button>
-          </div>
-
-          {/* 탭 카운터: 전체 | 완료 | 진행중 */}
-          <div className="flex gap-1 border-b">
-            {(
-              [
-                { key: 'all', label: '전체', Icon: LayoutList },
-                { key: 'completed', label: '완료', Icon: CheckCircle2 },
-                { key: 'in_progress', label: '진행중', Icon: Timer },
-              ] as const
-            ).map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === key
-                    ? 'border-black text-black'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {label} {tabCounts[key]}
-              </button>
-            ))}
-          </div>
-
-          {/* 툴바: 검색 + 필터 */}
-          <Toolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            priorityFilter={priorityFilter}
-            onPriorityFilterChange={setPriorityFilter}
-            sortOption={sortOption}
-            onSortOptionChange={setSortOption}
-          />
-
-          {/* 할 일 목록 */}
-          <TodoList
-            todos={filteredTodos}
-            onToggleComplete={handleToggleComplete}
-            onEdit={(todo) => openForm(todo)}
-            onDelete={handleDeleteClick}
-            onAdd={() => openForm()}
-            onAiSummaryUpdate={handleAiSummaryUpdate}
-          />
-
-          {/* AI 요약 및 분석 섹션 */}
-          <AiSummarySection todos={todos} />
-        </div>
-      </main>
-
-      {/* 할일 추가/수정 다이얼로그 */}
-      <Dialog open={isFormOpen} onOpenChange={(open) => { if (!open) closeForm(); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingTodo ? '할 일 수정' : '새 할 일 추가'}</DialogTitle>
-          </DialogHeader>
-          <TodoForm
-            key={editingTodo?.id ?? 'new'}
-            todo={editingTodo ?? undefined}
-            onSubmit={handleFormSubmit}
-            onCancel={closeForm}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* 삭제 확인 다이얼로그 */}
-      <AlertDialog
-        open={!!deletingTodoId}
-        onOpenChange={(open) => { if (!open) setDeletingTodoId(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>할 일을 삭제할까요?</AlertDialogTitle>
-            <AlertDialogDescription>
-              삭제한 항목은 복구할 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* CRUD 오류/성공 알림 토스트 (왼쪽 아래) */}
-      {notification && (
-        <div
-          className={`fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg text-white text-sm shadow-lg ${
-            notification.type === 'error' ? 'bg-red-600' : 'bg-gray-900'
-          }`}
-        >
-          <span>{notification.type === 'error' ? '⚠️' : '✅'}</span>
-          {notification.message}
-          <button onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
+type Todo = {
+  id: string;
+  title: string;
+  completed: boolean;
+  description?: string;
+  due_date?: string;
+  created_date?: string; 
 };
 
-export default Page;
+// 🌟 마법 1: 화면에 '오전/오후 00시 00분'으로 예쁘게 보여주는 번역기
+const formatDisplayDate = (dateString?: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleString('ko-KR', { 
+    year: 'numeric', 
+    month: 'numeric', 
+    day: 'numeric', 
+    hour: 'numeric', 
+    minute: 'numeric', 
+    hour12: true // 👈 이게 바로 오전/오후를 표시해주는 마법의 스위치입니다!
+  });
+};
+
+// 🌟 마법 2: DB의 시간을 입력창(시계)에 맞게 변환해 주는 번역기
+const formatForInput = (dateString?: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+export default function Home() {
+  const [inputValue, setInputValue] = useState("");
+  const [descriptionValue, setDescriptionValue] = useState("");
+  const [dueDateValue, setDueDateValue] = useState("");
+  
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [user, setUser] = useState<any>(null);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editCreatedDate, setEditCreatedDate] = useState(""); 
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUserAndTodos = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('todos')
+          .select('id, title, completed, description, due_date, created_date')
+          .eq('user_id', user.id)
+          .order('created_date', { ascending: true });
+
+        if (!error && data) setTodos(data);
+      }
+    };
+    fetchUserAndTodos();
+  }, []);
+
+  const handleAddTodo = async () => {
+    if (inputValue.trim() === "" || !user) return;
+
+    const newTodo = {
+      user_id: user.id,
+      title: inputValue,
+      description: descriptionValue || null,
+      due_date: dueDateValue ? new Date(dueDateValue).toISOString() : null,
+      completed: false
+    };
+
+    const { data, error } = await supabase
+      .from('todos').insert([newTodo]).select().single();
+
+    if (!error && data) {
+      setTodos([...todos, data]);
+      setInputValue("");
+      setDescriptionValue("");
+      setDueDateValue("");
+    }
+  };
+
+  const handleDeleteTodo = async (idToRemove: string) => {
+    const { error } = await supabase.from('todos').delete().eq('id', idToRemove);
+    if (!error) setTodos(todos.filter((todo) => todo.id !== idToRemove));
+  };
+
+  const handleToggleComplete = async (idToToggle: string, currentStatus: boolean) => {
+    setTodos(todos.map(todo => todo.id === idToToggle ? { ...todo, completed: !currentStatus } : todo));
+    await supabase.from('todos').update({ completed: !currentStatus }).eq('id', idToToggle);
+  };
+
+  const startEditing = (todo: Todo) => {
+    setEditingId(todo.id);
+    setEditTitle(todo.title);
+    setEditDescription(todo.description || "");
+    // ⏰ 수정할 때 날짜뿐만 아니라 '시간'도 그대로 가져오게 바꿨습니다!
+    setEditDueDate(formatForInput(todo.due_date)); 
+    setEditCreatedDate(formatForInput(todo.created_date)); 
+  };
+
+  const saveEdit = async (id: string) => {
+    if (editTitle.trim() === "") return alert("제목은 비워둘 수 없어요!");
+
+    const updatedData = {
+      title: editTitle,
+      description: editDescription || null,
+      due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
+      created_date: editCreatedDate ? new Date(editCreatedDate).toISOString() : undefined 
+    };
+
+    const { error } = await supabase.from('todos').update(updatedData).eq('id', id);
+
+    if (!error) {
+      setTodos(todos.map(todo => todo.id === id ? { ...todo, ...updatedData } : todo));
+      setEditingId(null); 
+    } else {
+      alert("수정 실패: " + error.message);
+    }
+  };
+
+  const completedCount = todos.filter((t) => t.completed).length;
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-24 bg-gray-50 text-gray-900">
+      <h1 className="text-4xl font-bold mb-6">✨ 우당탕탕 AI 투두 매니저</h1>
+
+      {!user ? (
+         <div className="flex gap-4 mb-8">
+            <Link href="/login" className="px-5 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-colors shadow-sm">로그인하러 가기</Link>
+         </div>
+      ) : (
+        <p className="mb-8 text-lg font-semibold text-blue-600">환영합니다, VIP {user.email} 님! 👋</p>
+      )}
+
+      <div className="w-full max-w-md bg-white p-5 rounded-xl shadow-md border border-gray-200 flex flex-col gap-3">
+        <input
+          type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+          placeholder={user ? "오늘 해치울 일은 무엇인가요? (필수)" : "로그인해야 입력할 수 있어요 🔒"}
+          disabled={!user}
+          className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 font-bold"
+        />
+        <textarea
+          value={descriptionValue} onChange={(e) => setDescriptionValue(e.target.value)}
+          placeholder="어떻게 실행할지 상세 플랜을 적어보세요 (선택)" disabled={!user}
+          className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 text-sm h-24 resize-none"
+        />
+        <div className="flex gap-2 items-center">
+          <span className="text-sm font-bold text-gray-500 whitespace-nowrap">마감 시간:</span>
+          {/* ⏰ 타입을 date에서 'datetime-local'로 바꿨습니다! */}
+          <input 
+            type="datetime-local" value={dueDateValue} onChange={(e) => setDueDateValue(e.target.value)} disabled={!user}
+            className="flex-1 p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-600 disabled:bg-gray-100"
+          />
+          <button 
+            onClick={handleAddTodo} disabled={!user || inputValue.trim() === ""}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 shadow-sm transition-colors disabled:bg-gray-400 whitespace-nowrap"
+          >
+            추가
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full max-w-md mt-8">
+        {todos.length > 0 && (
+          <div className="mb-4 flex justify-between items-center text-sm font-bold text-gray-600 bg-gray-100 p-3 rounded-lg">
+            <span>오늘의 달성률 🚀</span>
+            <span className="text-blue-600">{completedCount} / {todos.length} 완료</span>
+          </div>
+        )}
+
+        {todos.length === 0 ? (
+          <p className="text-center text-gray-500 mt-8">아직 등록된 할 일이 없네요. 뒹굴거려도 좋습니다! 🛌</p>
+        ) : (
+          <ul className="space-y-4">
+            {todos.map((todo) => (
+              <li key={todo.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col transition-all">
+                
+                {editingId === todo.id ? (
+                  <div className="flex flex-col gap-2">
+                    <input 
+                      type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                      className="w-full p-2 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                    />
+                    <textarea 
+                      value={editDescription} onChange={(e) => setEditDescription(e.target.value)}
+                      className="w-full p-2 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none h-20"
+                    />
+                    
+                    <div className="flex flex-col gap-2 mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-green-600 whitespace-nowrap w-16">🟢 시작:</span>
+                        {/* ⏰ 시계 모양 입력창으로 업그레이드! */}
+                        <input 
+                          type="datetime-local" value={editCreatedDate} onChange={(e) => setEditCreatedDate(e.target.value)}
+                          className="flex-1 p-1.5 border border-green-300 rounded text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-sm font-bold text-red-500 whitespace-nowrap w-16">🔴 마감:</span>
+                          <input 
+                            type="datetime-local" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)}
+                            className="flex-1 p-1.5 border border-red-300 rounded text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                          />
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button onClick={() => setEditingId(null)} className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-sm font-bold hover:bg-gray-300">취소</button>
+                          <button onClick={() => saveEdit(todo.id)} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700">저장</button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                ) : (
+                  <>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-start gap-3 mt-1 w-full">
+                        <input 
+                          type="checkbox" checked={todo.completed} onChange={() => handleToggleComplete(todo.id, todo.completed)}
+                          className="w-5 h-5 mt-0.5 cursor-pointer accent-blue-600 flex-shrink-0"
+                        />
+                        <div className="flex flex-col w-full">
+                          <span className={`font-bold text-lg ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                            {todo.title}
+                          </span>
+                          
+                          <div className="flex flex-col gap-1 mt-2">
+                            {todo.created_date && (
+                              <span className="text-xs font-semibold text-gray-600 bg-green-50 px-2 py-1 rounded w-fit">
+                                {/* ⏰ 오전/오후 번역기를 거쳐서 화면에 짠! */}
+                                🟢 시작: {formatDisplayDate(todo.created_date)}
+                              </span>
+                            )}
+                            {todo.due_date && (
+                              <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded w-fit">
+                                🔴 마감: {formatDisplayDate(todo.due_date)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3 ml-4 flex-shrink-0">
+                        <button onClick={() => startEditing(todo)} className="text-blue-500 hover:text-blue-700 text-sm font-bold whitespace-nowrap">수정</button>
+                        <button onClick={() => handleDeleteTodo(todo.id)} className="text-red-400 hover:text-red-600 text-sm font-bold whitespace-nowrap">삭제</button>
+                      </div>
+                    </div>
+
+                    {todo.description && (
+                      <div className={`mt-3 ml-8 p-3 rounded-md text-sm ${todo.completed ? 'bg-gray-50 text-gray-400' : 'bg-blue-50 text-blue-800'}`}>
+                        {todo.description}
+                      </div>
+                    )}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </main>
+  );
+}
