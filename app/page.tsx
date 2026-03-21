@@ -78,23 +78,16 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-4 bg-[#F8FAFC]">
-      {/* 🏷️ 제목: 모바일 줄바꿈 방지 및 크기 최적화 */}
-      <h1 className="text-2xl md:text-3xl font-black my-6 text-slate-800 tracking-tight text-center break-keep px-2">
-        ✨ AI로 내 계획 일정 서비스
-      </h1>
+      <h1 className="text-2xl font-black my-6 text-slate-800 tracking-tight text-center break-keep px-2">✨ AI로 내 계획 일정 서비스</h1>
 
-      {/* 👤 환영 박스 */}
       <div className="w-full max-w-md mb-6 bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 text-center">
-        <p className="text-lg font-black text-slate-700">
-          반갑습니다, <span className="text-blue-600 font-black">{user?.email?.split('@')[0]}</span>님! 👋
-        </p>
+        <p className="text-lg font-black text-slate-700">반갑습니다, <span className="text-blue-600 font-black">{user?.email?.split('@')[0]}</span>님! 👋</p>
         <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())} className="text-[10px] text-slate-300 font-bold mt-2 underline">로그아웃</button>
       </div>
 
-      {/* 🚀 달성률 바 */}
       <div className="w-full max-w-md mb-6 bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
-        <div className="flex justify-between items-end mb-2 px-1 text-sm font-black">
-          <span className="text-slate-600">오늘의 달성률</span>
+        <div className="flex justify-between items-end mb-2 px-1 text-sm font-black text-slate-600">
+          <span>오늘의 달성률 🚀</span>
           <span className="text-blue-600">{progressPercent}% 완료</span>
         </div>
         <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden">
@@ -102,61 +95,51 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ➕ 입력창 */}
       <div className="w-full max-w-md bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-50 mb-10 space-y-4">
         <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="오늘 해치울 일은?" className="w-full p-4 bg-slate-50 rounded-2xl font-black text-xl outline-none border-none" />
         <textarea value={descriptionValue} onChange={(e) => setDescriptionValue(e.target.value)} placeholder="상세 플랜을 적어보세요" className="w-full p-4 bg-slate-50 rounded-2xl text-base h-24 resize-none outline-none font-bold border-none" />
         
         <div className="space-y-2">
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <span className="text-sm font-black text-green-600">🟢 시작</span>
-            <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm font-black outline-none bg-transparent" />
-          </div>
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <span className="text-sm font-black text-red-500">🚨 마감</span>
-            <input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="text-sm font-black outline-none bg-transparent" />
-          </div>
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100"><span className="text-sm font-black text-green-600">🟢 시작</span><input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm font-black outline-none bg-transparent" /></div>
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100"><span className="text-sm font-black text-red-500">🚨 마감</span><input type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="text-sm font-black outline-none bg-transparent" /></div>
         </div>
         <button onClick={handleSaveTodo} className="w-full bg-slate-800 text-white py-4 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-all">일정 추가하기</button>
       </div>
 
-      {/* 📋 할 일 목록 */}
       <div className="w-full max-w-md space-y-6">
         {todos.map((todo) => (
-          <div key={todo.id} className={`p-6 rounded-[2.5rem] bg-white shadow-lg border border-slate-50 flex flex-col gap-5 relative transition-all ${todo.completed ? 'opacity-40' : ''}`}>
+          <div key={todo.id} className={`p-6 rounded-[2.5rem] bg-white shadow-lg border border-slate-50 flex flex-col gap-4 relative transition-all ${todo.completed ? 'opacity-40' : ''}`}>
             
-            {/* 수정/삭제 아이콘 */}
             <div className="absolute top-6 right-6 flex items-center gap-4 text-slate-300">
               <button onClick={() => handleEdit(todo)} className="hover:text-blue-500"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
               <button onClick={() => { if(confirm("삭제?")) supabase.from('todos').delete().eq('id', todo.id).then(() => fetchTodos()) }} className="hover:text-red-400"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
             </div>
 
-            <div className="flex items-start gap-4 pr-12">
-              <input type="checkbox" checked={todo.completed} onChange={() => handleToggle(todo.id, todo.completed)} className="w-7 h-7 mt-1 accent-blue-600 flex-shrink-0 cursor-pointer" />
-              <div className="flex-1 overflow-hidden">
+            <div className="flex flex-col gap-3"> {/* 제목과 상세설명을 세로로 배치하고 정렬 */}
+              <div className="flex items-start gap-4 pr-12">
+                <input type="checkbox" checked={todo.completed} onChange={() => handleToggle(todo.id, todo.completed)} className="w-7 h-7 mt-1 accent-blue-600 flex-shrink-0 cursor-pointer" />
                 <h3 className={`font-black text-2xl tracking-tighter leading-tight ${todo.completed ? 'line-through text-slate-300' : 'text-slate-800'}`}>{todo.title}</h3>
-                
-                {/* 📦 상세 설명 박스: 시작/마감 박스와 동일한 가로 너비 및 폰트 적용 */}
-                {todo.description && (
-                  <div className="text-[15px] text-blue-700 bg-blue-50/70 p-4 rounded-2xl mt-4 font-black border border-blue-100/50 leading-relaxed shadow-sm">
-                    {todo.description}
-                  </div>
-                )}
               </div>
+              
+              {/* 📦 [수정됨] 상세 설명 박스 가로 너비 일치 및 글씨 확대 */}
+              {todo.description && (
+                <div className="w-full text-[15.5px] text-blue-800 bg-blue-50/70 p-4 rounded-2xl font-black border border-blue-100/50 leading-relaxed shadow-sm">
+                  {todo.description}
+                </div>
+              )}
             </div>
             
-            {/* 📅 시작/마감 영역: 폰트 크기 확대 및 가독성 강조 */}
-            <div className="flex flex-col gap-2 pt-5 border-t border-slate-100">
+            <div className="flex flex-col gap-2 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-3 px-4 py-3 bg-green-50 rounded-2xl border border-green-100/50">
                 <span className="text-[13px] font-black text-green-700 flex-shrink-0">🟢 시작</span>
-                <span className="text-[17px] font-black text-slate-800">
+                <span className="text-[17.5px] font-black text-slate-800">
                   {new Date(todo.created_date).toLocaleString('ko-KR', {month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                 </span>
               </div>
               {todo.due_date && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-red-50 rounded-2xl border border-red-100/50">
                   <span className="text-[13px] font-black text-red-700 flex-shrink-0">🚨 마감</span>
-                  <span className="text-[17px] font-black text-slate-800">
+                  <span className="text-[17.5px] font-black text-slate-800">
                     {new Date(todo.due_date).toLocaleString('ko-KR', {month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                   </span>
                 </div>
