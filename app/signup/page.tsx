@@ -1,145 +1,80 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-// 📦 우리가 다룰 데이터의 모양을 정의합니다.
-type Todo = {
-  id: string;
-  title: string;
-};
-
-export default function Home() {
-  const [inputValue, setInputValue] = useState("");
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [user, setUser] = useState<any>(null); // 로그인한 유저 정보 저장
-
+export default function SignupPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const supabase = createClient();
 
-  // 🧠 화면이 처음 켜질 때 딱 한 번 실행되는 기억력 회복 마법
-  useEffect(() => {
-    const fetchUserAndTodos = async () => {
-      // 1. 현재 접속한 사람이 VIP(로그인 유저)인지 확인합니다.
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-      // 2. VIP가 맞다면, 창고(DB)에서 내 할 일 목록을 싹 가져옵니다.
-      if (user) {
-        const { data, error } = await supabase
-          .from('todos') // 창고 이름
-          .select('id, title') // 가져올 물건 이름표
-          .eq('user_id', user.id) // 내 물건만!
-          .order('created_date', { ascending: true }); // 옛날에 쓴 것부터 순서대로!
-
-        if (!error && data) {
-          setTodos(data);
-        }
-      }
-    };
-
-    fetchUserAndTodos();
-  }, []);
-
-  // ⚡ 할 일을 추가할 때 실행되는 마법
-  const handleAddTodo = async () => {
-    if (inputValue.trim() === "" || !user) return; // 빈칸이거나 로그인 안 했으면 튕겨내기!
-
-    // 1. 창고에 넣을 새 박스 포장하기
-    const newTodo = {
-      user_id: user.id, // 이건 내 거다! 하고 이름표 붙이기
-      title: inputValue,
-    };
-
-    // 2. 집주인에게 박스 던져주기 (DB 삽입)
-    const { data, error } = await supabase
-      .from('todos')
-      .insert([newTodo])
-      .select()
-      .single();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
 
     if (error) {
-      alert("앗! 저장에 실패했어요: " + error.message);
-    } else if (data) {
-      // 3. 저장이 성공하면 내 화면 목록에도 띄워주기
-      setTodos([...todos, { id: data.id, title: data.title }]);
-      setInputValue(""); // 입력창 비우기
+      alert("회원가입 에러: " + error.message);
+    } else {
+      alert("회원가입 성공! 로그인을 진행해 주세요.");
+      router.push("/login"); // 성공 시 로그인 페이지로 이동
     }
-  };
-
-  // 🗑️ 할 일을 삭제할 때 실행되는 마법
-  const handleDeleteTodo = async (idToRemove: string) => {
-    // 1. 창고에서 먼저 태워버리기 (DB 삭제)
-    const { error } = await supabase
-      .from('todos')
-      .delete()
-      .eq('id', idToRemove);
-
-    if (!error) {
-      // 2. 창고에서 지워졌으면 내 화면에서도 쓱 지우기
-      setTodos(todos.filter((todo) => todo.id !== idToRemove));
-    }
+    setLoading(false);
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-24 bg-gray-50 text-gray-900">
-      
-      <h1 className="text-4xl font-bold mb-6">
-        ✨ 우당탕탕 AI 투두 매니저
-      </h1>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
+      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">🎁 새 계정 만들기</h1>
+        
+        <form onSubmit={handleSignup} className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">이메일 주소</label>
+            <input
+              type="email"
+              placeholder="example@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-gray-600 mb-1 block">비밀번호</label>
+            <input
+              type="password"
+              placeholder="6자리 이상 입력"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-medium p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:bg-gray-400 mt-2"
+          >
+            {loading ? "가입 중..." : "회원가입 완료"}
+          </button>
+        </form>
 
-      {/* 🎭 로그인 상태에 따라 안내 문구가 바뀝니다! */}
-      {!user ? (
-         <div className="flex gap-4 mb-8">
-            <Link href="/login" className="px-5 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-colors shadow-sm">
-              로그인하러 가기
-            </Link>
-         </div>
-      ) : (
-        <p className="mb-8 text-lg font-semibold text-blue-600">
-          환영합니다, VIP {user.email} 님! 👋
-        </p>
-      )}
-
-      <div className="w-full max-w-md flex gap-2">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
-          placeholder={user ? "오늘 해치울 일은 무엇인가요?" : "로그인해야 입력할 수 있어요 🔒"}
-          disabled={!user} // 로그인 안 하면 입력창 잠금!
-          className="flex-1 p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-200"
-        />
-        <button 
-          onClick={handleAddTodo}
-          disabled={!user}
-          className="bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700 shadow-sm transition-colors disabled:bg-gray-400"
-        >
-          추가
-        </button>
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-500">이미 계정이 있으신가요?</span>{" "}
+          <Link href="/login" className="text-blue-600 font-bold underline">로그인하기</Link>
+        </div>
       </div>
-
-      <div className="w-full max-w-md mt-8">
-        {todos.length === 0 ? (
-          <p className="text-center text-gray-500">아직 등록된 할 일이 없네요. 뒹굴거려도 좋습니다! 🛌</p>
-        ) : (
-          <ul className="space-y-3">
-            {todos.map((todo) => (
-              <li key={todo.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm flex justify-between items-center">
-                <span className="font-medium">{todo.title}</span>
-                <button 
-                  onClick={() => handleDeleteTodo(todo.id)}
-                  className="text-red-500 hover:text-red-700 text-sm font-bold"
-                >
-                  삭제
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
     </main>
   );
 }
