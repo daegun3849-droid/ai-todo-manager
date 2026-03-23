@@ -1,56 +1,48 @@
-/**
- * Supabase 인증 미들웨어
- * - 비로그인 사용자가 보호된 페이지 접근 시 /login으로 리다이렉트
- * - 로그인된 사용자가 /login, /signup 접근 시 /로 리다이렉트
- */
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export const middleware = async (request: NextRequest) => {
-  let supabaseResponse = NextResponse.next({ request });
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    'https://crxeglrtfdgvvl-rxd-dbw.supabase.co',
+    'sb_publishable_sCcqYSbLmzLpVmRubrORew_TGtp7pJd',
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
-  );
+  )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl;
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
-
-  // 로그인된 사용자가 인증 페이지 접근 시 메인으로 이동
-  if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // 비로그인 사용자가 보호된 페이지 접근 시 로그인으로 이동
-  if (!user && !isAuthPage) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  return supabaseResponse;
-};
+  return response
+}
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+}
