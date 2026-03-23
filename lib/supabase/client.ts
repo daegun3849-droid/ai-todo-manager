@@ -1,9 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// 하이픈(-)과 주소를 정확하게 일치시켰습니다.
+const supabaseUrl = 'https://crxeglrtfdgvvl-rxd-dbw.supabase.co'
+const supabaseAnonKey = 'sb_publishable_sCcqYSbLmzLpVmRubrORew_TGtp7pJd'
 
-// 기존에 createClient를 찾던 파일들을 위해 추가로 내보내기
-export const createClient = () => supabase;
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+
+// 기존에 createClient를 찾던 파일들을 위한 호환성 유지
+export const createClient = () => supabase
