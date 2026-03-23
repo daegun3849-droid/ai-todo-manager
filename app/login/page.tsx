@@ -15,7 +15,7 @@ import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
  * useSearchParams를 사용하는 내부 컴포넌트
  * Suspense 경계 안에서만 렌더링됩니다.
  */
-const LoginContent = () => {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +51,7 @@ const LoginContent = () => {
 
     try {
       setIsLoading(true);
+      // 상단에서 import한 supabase 객체를 직접 사용합니다.
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -80,67 +81,67 @@ const LoginContent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-      {/* 로그아웃 완료 토스트 (왼쪽 아래) */}
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      {/* 로그아웃 완료 토스트 */}
       {showLogoutToast && (
         <div className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-900 text-white text-sm shadow-lg animate-in fade-in slide-in-from-bottom-2">
           <span>✅</span>
           로그아웃 되었습니다.
         </div>
       )}
+      
       <div className="mb-6 text-center">
-        <div className="text-5xl mb-2">✅</div>
-        <h1 className="text-2xl font-bold">AI Todo Manager</h1>
+        <div className="text-5xl mb-2 text-blue-600">✅</div>
+        <h1 className="text-2xl font-bold text-slate-800">AI Todo Manager</h1>
         <p className="text-gray-500">AI가 도와주는 스마트한 할 일 관리</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md border border-slate-100">
         <h2 className="text-xl font-bold text-center mb-1">로그인</h2>
-        <p className="text-center text-gray-500 text-xs mb-6 whitespace-nowrap">
-          AI가 도와주는 스마트한 할 일 관리 시스템에 오신 것을 환영합니다
+        <p className="text-center text-gray-400 text-xs mb-8">
+          스마트한 할 일 관리 시스템에 오신 것을 환영합니다
         </p>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium mb-1">이메일</label>
+            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">이메일</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="email"
                 placeholder="이메일을 입력하세요"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 disabled={isLoading}
-                className="w-full border rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50"
+                className="w-full border-slate-200 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50 bg-slate-50/50"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">비밀번호</label>
+            <label className="block text-sm font-bold text-slate-700 mb-1 ml-1">비밀번호</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="비밀번호를 입력하세요"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 disabled={isLoading}
-                className="w-full border rounded-lg pl-9 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50"
+                className="w-full border-slate-200 rounded-xl pl-11 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-50 bg-slate-50/50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
@@ -148,42 +149,44 @@ const LoginContent = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-black text-white py-2 rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 로그인 중...
               </>
             ) : (
-              '로그인 →'
+              '로그인하기 →'
             )}
           </button>
         </form>
 
-        <div className="text-center mt-4 text-sm text-gray-500">아직 계정이 없으신가요?</div>
-        <Link href="/signup">
-          <button className="w-full mt-2 border rounded-lg py-2 text-sm hover:bg-gray-50">
-            🌟 회원가입
-          </button>
-        </Link>
+        <div className="mt-8 pt-6 border-t border-slate-50">
+          <p className="text-center text-sm text-slate-500 mb-4">아직 계정이 없으신가요?</p>
+          <Link href="/signup">
+            <button className="w-full border-2 border-slate-100 text-slate-700 py-3 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors">
+              🌟 10초만에 회원가입하기
+            </button>
+          </Link>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 /**
- * Suspense 경계로 감싼 로그인 페이지
- * useSearchParams() 사용을 위해 필수입니다.
+ * 최종 내보내기 (Suspense 래퍼)
  */
-const LoginPage = () => (
-  <Suspense fallback={
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-    </div>
-  }>
-    <LoginContent />
-  </Suspense>
-);
-
-export default LoginPage;
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-4" />
+        <p className="text-slate-400 text-sm animate-pulse">페이지를 준비하고 있습니다...</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  );
+}
