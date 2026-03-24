@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 export default function TodoPage() {
   const [todos, setTodos] = useState<any[]>([]);
+  const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -16,6 +17,10 @@ export default function TodoPage() {
         router.push('/login');
         return;
       }
+      // 이메일에서 @ 앞부분(아이디)만 가져오기
+      const email = session.user.email || '';
+      setUserEmail(email.split('@')[0]);
+      
       await fetchTodos();
     };
     init();
@@ -24,7 +29,6 @@ export default function TodoPage() {
   async function fetchTodos() {
     try {
       setLoading(true);
-      // created_at 에러 방지를 위해 정렬 없이 전체 데이터 호출
       const { data, error } = await supabase.from('todos').select('*');
       if (error) throw error;
       setTodos(data || []);
@@ -35,17 +39,14 @@ export default function TodoPage() {
     }
   }
 
-  // [수정] 데이터베이스 컬럼명이 달라도 날짜를 찾아내는 똑똑한 함수
   const formatDate = (todo: any, type: 'start' | 'end') => {
-    // DB 컬럼명이 start_time일 수도 있고 start_at일 수도 있어서 둘 다 체크합니다.
     const dateStr = type === 'start' 
       ? (todo.start_time || todo.start_at) 
       : (todo.end_time || todo.end_at || todo.due_date);
 
     if (!dateStr) return '미지정';
-    
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '미지정'; // 날짜 형식이 아닐 경우
+    if (isNaN(d.getTime())) return '미지정';
 
     return d.toLocaleString('ko-KR', { 
       month: 'numeric', day: 'numeric', 
@@ -62,68 +63,77 @@ export default function TodoPage() {
 
   return (
     <div className="max-w-md mx-auto p-4 bg-gray-50 min-h-screen pb-24 text-gray-900 font-sans">
-      {/* 1. 헤더 */}
-      <header className="flex justify-between items-center mb-6 pt-4">
-        <h1 className="text-xl font-black tracking-tighter text-gray-900">✨ AI 내 계획 일정</h1>
-        <button 
-          onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-          className="px-4 py-2 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-500 shadow-sm active:scale-95 transition-all"
-        >로그아웃</button>
+      {/* 1. 환영 헤더 */}
+      <header className="mb-8 pt-6 px-2">
+        <div className="flex justify-between items-start mb-2">
+          <div className="space-y-1">
+            <p className="text-emerald-600 font-bold text-sm">반갑습니다, {userEmail}님! 👋</p>
+            <h1 className="text-2xl font-black tracking-tighter text-gray-900">
+              AI 재 계획 <br/>일정 서비스
+            </h1>
+          </div>
+          <button 
+            onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
+            className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-400 shadow-sm active:scale-95"
+          >로그아웃</button>
+        </div>
       </header>
 
-      {/* 2. 상단 입력창 (모바일에서 절대 안 깨지게 수정) */}
-      <div className="bg-white p-5 rounded-[28px] shadow-sm border border-gray-100 mb-8">
-        <p className="text-sm font-bold text-gray-800 mb-4">오늘 해치울 일은?</p>
+      {/* 2. 상단 입력 카드 (모바일 최적화) */}
+      <div className="bg-white p-6 rounded-[32px] shadow-md border border-gray-50 mb-10">
+        <p className="text-sm font-black text-gray-800 mb-4">어떤 계획을 재구성해볼까요?</p>
         <textarea 
-          placeholder="오늘 할 일을 입력해 보세요"
-          className="w-full p-4 bg-gray-50 rounded-2xl border-none text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none mb-4"
-          rows={2}
+          placeholder="여기에 할 일을 입력하세요..."
+          className="w-full p-4 bg-gray-50 rounded-2xl border-none text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none mb-4 min-h-[100px]"
         />
+        
+        {/* 날짜 선택 버튼 그룹 - 모바일에서 겹치지 않게 grid 유지 */}
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <button className="flex items-center justify-center gap-2 bg-emerald-50 p-3 rounded-xl border border-emerald-100 shrink-0">
+          <button className="flex flex-col items-center justify-center gap-1 bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/50 active:bg-emerald-100 transition-colors">
             <span className="text-xs">🟢</span>
-            <span className="text-[11px] font-black text-emerald-700 whitespace-nowrap">시작 일시</span>
+            <span className="text-[11px] font-black text-emerald-700">시작 일시</span>
           </button>
-          <button className="flex items-center justify-center gap-2 bg-rose-50 p-3 rounded-xl border border-rose-100 shrink-0">
+          <button className="flex flex-col items-center justify-center gap-1 bg-rose-50/50 p-3 rounded-2xl border border-rose-100/50 active:bg-rose-100 transition-colors">
             <span className="text-xs">🚨</span>
-            <span className="text-[11px] font-black text-rose-700 whitespace-nowrap">마감 일시</span>
+            <span className="text-[11px] font-black text-rose-700">마감 일시</span>
           </button>
         </div>
-        <button className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-sm shadow-lg active:scale-[0.98] transition-transform">
-          일정 추가하기
+
+        <button className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-base shadow-xl active:scale-[0.97] transition-all">
+          AI 일정 생성하기
         </button>
       </div>
 
-      {/* 3. 일정 리스트 */}
+      {/* 3. 할 일 목록 리스트 */}
+      <div className="px-1 mb-4 flex justify-between items-center">
+        <h2 className="font-black text-gray-900 text-lg">내 계획 리스트</h2>
+        <span className="text-[10px] font-bold text-gray-400">총 {todos.length}개</span>
+      </div>
+
       <div className="space-y-4">
         {todos.length === 0 ? (
-          <div className="text-center py-20 text-gray-400 text-sm font-medium bg-white rounded-[28px] border border-dashed border-gray-200">
-            등록된 일정이 없습니다.
+          <div className="text-center py-20 text-gray-300 text-sm font-medium bg-white rounded-[32px] border border-dashed border-gray-200">
+            아직 생성된 일정이 없습니다.
           </div>
         ) : (
           todos.map((todo) => (
-            <div key={todo.id} className="bg-white p-5 rounded-[28px] shadow-sm border border-gray-100">
+            <div key={todo.id} className="bg-white p-5 rounded-[28px] shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-4">
-                <h3 className="font-bold text-gray-800 text-lg leading-tight break-all">{todo.title}</h3>
-                <div className="flex gap-2">
-                  <button className="text-gray-300 text-xs">✏️</button>
-                  <button className="text-gray-300 text-xs">🗑️</button>
+                <h3 className="font-bold text-gray-800 text-lg leading-tight break-all pr-4">{todo.title}</h3>
+                <div className="flex gap-1 shrink-0">
+                  <button className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-xs">✏️</button>
+                  <button className="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-xs">🗑️</button>
                 </div>
               </div>
               
-              {/* 모바일 최적화: 세로로 쌓기 */}
+              {/* 시간 정보 섹션 - 세로 배치로 절대 안 깨짐 */}
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between bg-emerald-50/70 p-3 rounded-2xl">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs">🟢 시작</span>
-                  </div>
+                <div className="flex items-center justify-between bg-emerald-50/40 p-3 rounded-2xl">
+                  <span className="text-[11px] font-black text-emerald-600 shrink-0">시작 일시</span>
                   <span className="text-[11px] font-bold text-emerald-900">{formatDate(todo, 'start')}</span>
                 </div>
-
-                <div className="flex items-center justify-between bg-rose-50/70 p-3 rounded-2xl">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs">🚨 마감</span>
-                  </div>
+                <div className="flex items-center justify-between bg-rose-50/40 p-3 rounded-2xl">
+                  <span className="text-[11px] font-black text-rose-600 shrink-0">마감 일시</span>
                   <span className="text-[11px] font-bold text-rose-900">{formatDate(todo, 'end')}</span>
                 </div>
               </div>
