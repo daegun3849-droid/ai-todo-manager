@@ -11,11 +11,13 @@ export default function TodoPage() {
 
   useEffect(() => {
     const init = async () => {
+      // 1. 세션 체크 (로그인 안 되어 있으면 로그인 페이지로)
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/login');
         return;
       }
+      // 2. 데이터 불러오기
       await fetchTodos();
     };
     init();
@@ -24,10 +26,10 @@ export default function TodoPage() {
   async function fetchTodos() {
     try {
       setLoading(true);
+      // [중요] created_at 에러 방지를 위해 .order()를 일단 제외하고 전체를 가져옵니다.
       const { data, error } = await supabase
         .from('todos')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       if (error) throw error;
       setTodos(data || []);
@@ -38,6 +40,7 @@ export default function TodoPage() {
     }
   }
 
+  // 날짜 포맷 함수 (모바일 공간 확보를 위해 연도 제외)
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '미지정';
     const d = new Date(dateStr);
@@ -55,41 +58,55 @@ export default function TodoPage() {
   );
 
   return (
-    <div className="max-w-md mx-auto p-4 bg-gray-50 min-h-screen pb-24">
+    <div className="max-w-md mx-auto p-4 bg-gray-50 min-h-screen pb-24 text-gray-900">
+      {/* 상단 헤더 */}
       <header className="flex justify-between items-center mb-8 pt-4">
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">✨ AI 일정 관리</h1>
+        <h1 className="text-xl font-black tracking-tight">✨ AI 일정 관리</h1>
         <button 
           onClick={async () => { await supabase.auth.signOut(); router.push('/login'); }}
-          className="px-4 py-2 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-500 shadow-sm active:scale-95 transition-all"
+          className="px-4 py-2 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-500 shadow-sm active:scale-95"
         >로그아웃</button>
       </header>
 
+      {/* 일정 목록 */}
       <div className="space-y-4">
         {todos.length === 0 ? (
-          <div className="text-center py-20 text-gray-400 text-sm">등록된 일정이 없습니다.</div>
+          <div className="text-center py-20 text-gray-400 text-sm font-medium">
+            등록된 일정이 없습니다.<br/>Supabase에서 데이터를 추가해보세요!
+          </div>
         ) : (
           todos.map((todo) => (
             <div key={todo.id} className="bg-white p-5 rounded-[28px] shadow-sm border border-gray-100">
               <div className="flex justify-between items-start mb-3">
-                <h3 className="font-bold text-gray-800 text-lg leading-tight">{todo.title}</h3>
-                {todo.is_completed && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-1 rounded-full font-black ml-2 shrink-0">완료</span>}
+                <h3 className="font-bold text-gray-800 text-lg leading-tight break-all">{todo.title}</h3>
+                {todo.is_completed && (
+                  <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-1 rounded-full font-black ml-2 shrink-0">완료</span>
+                )}
               </div>
-              <p className="text-gray-500 text-xs mb-5 line-clamp-2">{todo.content}</p>
+              <p className="text-gray-500 text-xs mb-5 line-clamp-2 leading-relaxed">{todo.content}</p>
               
+              {/* 모바일 최적화: 가로가 아닌 세로로 배치하여 글씨 깨짐 방지 */}
               <div className="flex flex-col gap-2">
+                {/* 시작 시간 */}
                 <div className="flex items-center justify-between bg-emerald-50/70 p-3 rounded-2xl border border-emerald-100/50">
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs">🟢</span>
                     <span className="text-[11px] font-black text-emerald-700">시작</span>
                   </div>
-                  <span className="text-[11px] text-emerald-900 font-bold whitespace-nowrap">{formatDate(todo.start_time)}</span>
+                  <span className="text-[11px] font-bold text-emerald-900 whitespace-nowrap">
+                    {formatDate(todo.start_time)}
+                  </span>
                 </div>
+
+                {/* 마감 시간 */}
                 <div className="flex items-center justify-between bg-rose-50/70 p-3 rounded-2xl border border-rose-100/50">
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs">🚨</span>
                     <span className="text-[11px] font-black text-rose-700">마감</span>
                   </div>
-                  <span className="text-[11px] text-rose-900 font-bold whitespace-nowrap">{formatDate(todo.end_time)}</span>
+                  <span className="text-[11px] font-bold text-rose-900 whitespace-nowrap">
+                    {formatDate(todo.end_time)}
+                  </span>
                 </div>
               </div>
             </div>
