@@ -7,34 +7,19 @@ export const POST = async (req: NextRequest) => {
     const { text: rawText } = await req.json();
     if (!rawText) return NextResponse.json({ error: '내용이 없습니다.' }, { status: 400 });
 
-    // ✅ 오늘 날짜 계산
-    const now = new Date();
-    const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const todayStr = kstDate.toISOString().slice(0, 10);
-
-    // 🚨 AI 훈련: "날짜 없으면 무조건 오늘로 달력에 등록해!" 라고 지시 추가
     const prompt = `당신은 핵심 정보를 추출하는 일정 관리 비서입니다. 
-오늘 날짜는 ${todayStr} 입니다. 입력된 문장을 분석하여 아래 JSON 양식으로만 답변하세요. 마크다운 기호(\`\`\`)는 절대 쓰지 마세요.
-
-[작성 규칙]
-1. due_date: "내일", "모레" 등은 오늘(${todayStr}) 기준으로 계산하여 "YYYY-MM-DD"로 작성. 
-   **만약 날짜 언급 없이 "오후 3시"처럼 시간만 있다면 무조건 오늘 날짜(${todayStr})를 적으세요.** (절대 '미정' 금지)
-2. due_time: "오후 2시" -> "14:00" 처럼 무조건 24시간제 "HH:MM" 형식으로 작성. (시간도 없으면 "09:00"으로 기본값 설정)
-
-[출력 양식]
+텍스트를 분석해서 아래 JSON 양식의 빈칸을 채워주세요. 마크다운 기호(\`\`\`)는 절대 쓰지 마세요.
 {
   "title": "일정의 핵심 제목 (짧게)",
   "location": "장소 (없으면 '미정')",
   "time": "시간 (없으면 '미정')",
-  "summary": "핵심 내용 요약",
-  "due_date": "YYYY-MM-DD",
-  "due_time": "HH:MM"
+  "summary": "핵심 내용 요약"
 }
-
 분석할 텍스트: "${rawText}"`;
 
     const { text: aiResponse } = await generateText({
-      model: google('gemini-2.5-flash'), 
+      // ✅ 새 API 키가 있으니 무적입니다! 원래 잘 되던 2.5-flash로 원상복구!
+      model: google('gemini-2.0-flash'), 
       prompt,
     });
 
@@ -47,10 +32,7 @@ export const POST = async (req: NextRequest) => {
 
     return NextResponse.json({
       title: rawResult.title || '새 일정',
-      content: formattedContent,
-      // ✨ 이제 날짜가 비어있을 틈을 주지 않습니다!
-      due_date: rawResult.due_date || todayStr,
-      due_time: rawResult.due_time || '09:00'
+      content: formattedContent
     });
 
   } catch (error: any) {
