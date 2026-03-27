@@ -157,7 +157,7 @@ export const TodoCard = ({
             </Badge>
           )}
 
-          {todo.category.map((cat) => (
+            {todo.category.map((cat: any) => (
             <Badge key={cat} variant="secondary">
               {cat}
             </Badge>

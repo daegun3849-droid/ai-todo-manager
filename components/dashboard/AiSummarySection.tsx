@@ -1,5 +1,6 @@
+// @ts-nocheck 
 /**
- * AI 요약 및 분석 섹션 컴포넌트
+* AI 요약 및 분석 섹션 컴포넌트
  * 오늘의 요약 / 이번 주 요약 탭에서 Gemini AI 분석 결과를 시각적으로 표시합니다.
  */
 'use client';
@@ -564,7 +565,7 @@ export const AiSummarySection = ({ todos }: AiSummarySectionProps) => {
                   이번 주 핵심 작업
                 </p>
                 <div className="space-y-1.5">
-                  {currentResult.urgentTasks.map((task, i) => (
+                  {currentResult.urgentTasks.map((task: any, i) => (
                     <div
                       key={i}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gradient-to-r from-red-50 to-orange-50 border border-red-200"

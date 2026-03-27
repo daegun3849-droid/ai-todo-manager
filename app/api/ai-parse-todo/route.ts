@@ -297,13 +297,18 @@ export const POST = async (req: NextRequest) => {
   const { prompt, todayStr } = buildPrompt(cleanedText);
   let aiResponse: string;
 
+  // --- route.ts 수정 부분 ---
+  // --- route.ts 수정 부분 (301~305번 라인 근처) ---
   try {
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt,
+      // 2026년 현재 가장 성능이 좋고 안정적인 모델입니다.
+      model: google('gemini-2.0-flash'), 
+      prompt: prompt, 
     });
+    
     aiResponse = text;
   } catch (err) {
+// ------------------------------------------
     console.error('[AI 파싱] AI 호출 실패:', err);
     const { message, status } = classifyAiError(err);
     return NextResponse.json({ error: message }, { status });

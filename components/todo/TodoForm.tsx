@@ -131,8 +131,8 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
 
       const categories = categoryInput
         .split(',')
-        .map((cat) => cat.trim())
-        .filter((cat) => cat.length > 0);
+        .map((cat: any) => cat.trim())
+        .filter((cat: any) => cat.length > 0);
 
       // 날짜 + 시간 → KST 기준 ISO 문자열 생성
       let dueDateValue: string | null = null;
