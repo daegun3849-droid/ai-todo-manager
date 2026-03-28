@@ -5,7 +5,7 @@
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
-import type { AiAnalysisResult } from '@/types/todo';
+import type { AiAnalysisResult } from '../../../types/todo';
 
 interface TodoItem {
   title: string;
