@@ -1,60 +1,33 @@
-import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const POST = async (req: NextRequest) => {
   try {
-    const { text: rawText } = await req.json();
-    if (!rawText) return NextResponse.json({ error: '내용이 없습니다.' }, { status: 400 });
+    const { rawText } = await req.json();
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY;
 
-    // ✅ 오늘 날짜 계산
-    const now = new Date();
-    const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const todayStr = kstDate.toISOString().slice(0, 10);
+    if (!apiKey) {
+      return NextResponse.json({ error: 'API 키가 설정되지 않았습니다.' }, { status: 500 });
+    }
 
-    // 🚨 AI 훈련: "날짜 없으면 무조건 오늘로 달력에 등록해!" 라고 지시 추가
-    const prompt = `당신은 핵심 정보를 추출하는 일정 관리 비서입니다. 
-오늘 날짜는 ${todayStr} 입니다. 입력된 문장을 분석하여 아래 JSON 양식으로만 답변하세요. 마크다운 기호(\`\`\`)는 절대 쓰지 마세요.
-
-[작성 규칙]
-1. due_date: "내일", "모레" 등은 오늘(${todayStr}) 기준으로 계산하여 "YYYY-MM-DD"로 작성. 
-   **만약 날짜 언급 없이 "오후 3시"처럼 시간만 있다면 무조건 오늘 날짜(${todayStr})를 적으세요.** (절대 '미정' 금지)
-2. due_time: "오후 2시" -> "14:00" 처럼 무조건 24시간제 "HH:MM" 형식으로 작성. (시간도 없으면 "09:00"으로 기본값 설정)
-
-[출력 양식]
-{
-  "title": "일정의 핵심 제목 (짧게)",
-  "location": "장소 (없으면 '미정')",
-  "time": "시간 (없으면 '미정')",
-  "summary": "핵심 내용 요약",
-  "due_date": "YYYY-MM-DD",
-  "due_time": "HH:MM"
-}
-
-분석할 텍스트: "${rawText}"`;
-
-    const { text: aiResponse } = await generateText({
-      model: google('gemini-2.5-flash'), 
-      prompt,
+    const { text } = await generateText({
+      // 💡 해결책: 가장 기본 모델명인 'gemini-1.5-flash' 사용
+      // 만약 이것도 안된다면 'gemini-pro'로 테스트해보세요.
+      model: google('gemini-1.5-flash'),
+      apiKey: apiKey,
+      prompt: `오늘 날짜: ${new Date().toLocaleString('ko-KR')}
+      사용자 입력: "${rawText}"
+      상기 문장에서 정보를 추출해 JSON으로만 답해줘. 마크다운 기호는 쓰지 마.
+      {"title":"제목 요약","desc":"상세내용","start":"YYYY-MM-DDTHH:mm","end":"YYYY-MM-DDTHH:mm"}`,
     });
 
-    const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON 파싱 실패');
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('AI 응답 파싱 실패');
 
-    const rawResult = JSON.parse(jsonMatch[0]);
-    const formattedContent = `장소 : ${rawResult.location || '미정'}\n시간 : ${rawResult.time || '미정'}\n내용 : ${rawResult.summary || '없음'}`;
-
-    return NextResponse.json({
-      title: rawResult.title || '새 일정',
-      content: formattedContent,
-      // ✨ 이제 날짜가 비어있을 틈을 주지 않습니다!
-      due_date: rawResult.due_date || todayStr,
-      due_time: rawResult.due_time || '09:00'
-    });
-
+    return NextResponse.json(JSON.parse(jsonMatch[0]));
   } catch (error: any) {
-    console.error('[API 에러]:', error);
-    return NextResponse.json({ error: '서버 에러가 발생했습니다.' }, { status: 500 });
+    console.error("🚨 서버 분석 에러 상세:", error);
+    return NextResponse.json({ error: error.message || '분석 실패' }, { status: 500 });
   }
 };
