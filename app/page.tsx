@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/utils/supabase/client";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 
