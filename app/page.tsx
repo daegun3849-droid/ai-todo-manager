@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
 
@@ -16,7 +16,6 @@ interface Todo {
 
 export default function TodoPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [rawInput, setRawInput] = useState(""); 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -27,29 +26,30 @@ export default function TodoPage() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) { 
-        setUser(user); 
-        fetchTodos(user.id); 
+      if (user) {
+        setUser(user);
+        fetchTodos(user.id);
       }
     };
     checkUser();
   }, []);
 
   const fetchTodos = async (userId: string) => {
-    const { data } = await supabase.from("todos").select("*").eq("user_id", userId).order("start_time", { ascending: true });
+    const { data } = await supabase.from("todos").select("*").eq("user_id", userId).order("id", { ascending: false });
     if (data) setTodos(data);
   };
 
+  // ✨ AI 자동완성 (제목 칸에 쓴 내용을 분석해서 채움)
   const handleAIAutoFill = async () => {
-    if (!rawInput.trim()) return;
+    if (!title.trim()) return;
     setLoading(true);
     try {
       const { text } = await generateText({
         model: google("gemini-1.5-flash"),
-        prompt: `텍스트: "${rawInput}" 에서 정보를 추출해 JSON으로 줘. 형식: { "title": "제목", "desc": "상세내용(장소/메모)", "start": "YYYY-MM-DDTHH:mm", "end": "YYYY-MM-DDTHH:mm" }. 현재시간: ${new Date().toISOString()}`,
+        prompt: `텍스트: "${title}" 에서 정보를 추출해 JSON으로 줘. 형식: { "title": "제목", "desc": "상세내용", "start": "YYYY-MM-DDTHH:mm", "end": "YYYY-MM-DDTHH:mm" }. 현재시간: ${new Date().toISOString()}`,
       });
-      const res = JSON.parse(text.replace(/```json|```/g, ""));
-      setTitle(res.title || "");
+      const res = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+      setTitle(res.title || title);
       setDescription(res.desc || "");
       setStartTime(res.start?.slice(0, 16) || "");
       setEndTime(res.end?.slice(0, 16) || "");
@@ -61,98 +61,86 @@ export default function TodoPage() {
   };
 
   const handleAddTodo = async () => {
-    if (!title) return alert("제목을 입력해주세요.");
+    if (!title) return;
     const { error } = await supabase.from("todos").insert([{
       content: title,
       description: description,
-      start_time: new Date(startTime).toISOString(),
-      end_time: new Date(endTime).toISOString(),
+      start_time: startTime || new Date().toISOString(),
+      end_time: endTime || new Date().toISOString(),
       user_id: user.id,
     }]);
     if (!error) {
-      setTitle(""); setDescription(""); setStartTime(""); setEndTime(""); setRawInput("");
+      setTitle(""); setDescription(""); setStartTime(""); setEndTime("");
       fetchTodos(user.id);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#F8FAFC] p-5 pb-20 font-sans text-slate-900">
-      <header className="flex justify-between items-center py-6">
-        <div>
-          <h1 className="text-2xl font-black tracking-tighter text-slate-900">AI PLANNER</h1>
-          <p className="text-sm font-bold text-blue-600">반갑습니다, {user?.email?.split('@')[0]}님! 👋</p>
-        </div>
-        <button onClick={() => supabase.auth.signOut().then(() => window.location.href="/login")} className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-2 rounded-xl">로그아웃</button>
+    <div className="max-w-2xl mx-auto min-h-screen bg-slate-50/50 p-6 pb-20 font-sans">
+      <header className="py-12 text-center">
+        <h1 className="text-3xl font-bold text-slate-800">AI로 만드는 내 일정 서비스</h1>
       </header>
 
-      {/* [1] AI 처리 영역 */}
-      <section className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest">1. AI 분석 입력</span>
-          <button onClick={handleAIAutoFill} disabled={loading} className="bg-blue-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-md shadow-blue-200">
-            {loading ? "분석중..." : "✨ 자동 완성"}
+      {/* ⚪ 메인 입력 카드 */}
+      <div className="bg-white rounded-[40px] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] mb-12 relative">
+        <button 
+          onClick={handleAIAutoFill}
+          className="absolute top-8 right-10 text-[11px] font-bold bg-green-50 text-green-600 px-3 py-1 rounded-full border border-green-100 flex items-center gap-1 hover:bg-green-100 transition-all"
+        >
+          ✨ {loading ? "분석중..." : "AI 자동완성"}
+        </button>
+
+        <div className="space-y-4">
+          <input 
+            className="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border-none placeholder:text-slate-400"
+            placeholder="내일 강남에서 오후 2시에 미팅있어"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <textarea 
+            className="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border-none placeholder:text-slate-400 resize-none"
+            placeholder="내용"
+            rows={4}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <div className="flex gap-4">
+            <input type="datetime-local" className="flex-1 p-3 bg-slate-50 rounded-xl text-xs text-slate-500 border-none outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} />
+            <input type="datetime-local" className="flex-1 p-3 bg-slate-50 rounded-xl text-xs text-slate-500 border-none outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} />
+          </div>
+          <button 
+            onClick={handleAddTodo}
+            className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-bold text-base mt-2 active:scale-[0.98] transition-all shadow-lg shadow-slate-200"
+          >
+            일정 추가
           </button>
         </div>
-        <textarea 
-          className="w-full p-4 bg-slate-50 rounded-2xl text-sm outline-none border-none focus:ring-2 focus:ring-blue-100"
-          placeholder="예: 내일 오후 2시 강남역 미팅"
-          rows={2}
-          value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
-        />
-      </section>
+      </div>
 
-      {/* [2, 3, 4] 상세 입력 영역 */}
-      <section className="bg-white rounded-[32px] p-6 shadow-xl shadow-slate-200/50 mb-10 border border-white">
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-5">2. 일정 상세 정보</span>
-        <div className="space-y-5">
-          {/* 대제목 */}
-          <div>
-            <label className="text-xs font-black text-slate-500 ml-1">제목</label>
-            <input className="w-full mt-1.5 p-4 bg-slate-50 rounded-2xl text-sm font-bold text-slate-900 border-none focus:ring-2 focus:ring-blue-100" value={title} onChange={e => setTitle(e.target.value)} placeholder="일정 제목을 입력하세요" />
-          </div>
-          {/* 상세설명 */}
-          <div>
-            <label className="text-xs font-black text-slate-500 ml-1">상세 설명</label>
-            <textarea className="w-full mt-1.5 p-4 bg-slate-50 rounded-2xl text-sm text-slate-600 border-none focus:ring-2 focus:ring-blue-100" rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="장소나 메모를 입력하세요" />
-          </div>
-          {/* 시간 설정 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-black text-slate-500 ml-1">시작 시간</label>
-              <input type="datetime-local" className="w-full mt-1.5 p-3 bg-slate-50 rounded-2xl text-[11px] font-black text-slate-900 border-none" value={startTime} onChange={e => setStartTime(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs font-black text-slate-500 ml-1">마감 시간</label>
-              <input type="datetime-local" className="w-full mt-1.5 p-3 bg-slate-50 rounded-2xl text-[11px] font-black text-slate-900 border-none" value={endTime} onChange={e => setEndTime(e.target.value)} />
-            </div>
-          </div>
-        </div>
-        <button onClick={handleAddTodo} className="w-full mt-8 bg-slate-900 text-white py-4 rounded-2xl font-black text-base active:scale-95 transition-all shadow-lg shadow-slate-900/20">
-          일정 추가하기
-        </button>
-      </section>
-
-      {/* 리스트 목록 */}
-      <div className="space-y-4 text-slate-900">
-        <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-2">My Plans ({todos.length})</h2>
+      {/* ⚪ 리스트 목록 */}
+      <div className="max-w-xl mx-auto space-y-3">
         {todos.map(todo => (
-          <div key={todo.id} className="bg-white p-5 rounded-[28px] shadow-sm border border-white">
-            <div className="flex justify-between items-start mb-2">
-              <h3 className={`text-lg font-black text-slate-900 ${todo.is_completed ? 'line-through text-slate-300' : ''}`}>{todo.content}</h3>
-              <input type="checkbox" checked={todo.is_completed} className="w-6 h-6 rounded-full border-slate-200 text-blue-600" onChange={async () => { await supabase.from("todos").update({ is_completed: !todo.is_completed }).eq("id", todo.id); fetchTodos(user.id); }} />
-            </div>
-            {todo.description && <p className="text-sm font-medium text-slate-500 mb-4 ml-1 leading-relaxed">{todo.description}</p>}
-            <div className="flex flex-col gap-2 pt-4 border-t border-slate-50">
-              <div className="flex items-center gap-3 text-[11px] font-bold">
-                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded">시작</span>
-                <span className="text-slate-700">{new Date(todo.start_time).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+          <div key={todo.id} className="bg-white p-6 rounded-[30px] shadow-sm border border-slate-50 flex items-center justify-between group">
+            <div className="flex items-center gap-4">
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${todo.is_completed ? 'bg-green-500 border-green-500' : 'border-slate-200'}`}
+                onClick={async () => {
+                  await supabase.from("todos").update({ is_completed: !todo.is_completed }).eq("id", todo.id);
+                  fetchTodos(user.id);
+                }}
+              >
+                {todo.is_completed && <div className="w-2 h-2 bg-white rounded-full" />}
               </div>
-              <div className="flex items-center gap-3 text-[11px] font-bold">
-                <span className="text-rose-500 bg-rose-50 px-2 py-0.5 rounded">마감</span>
-                <span className="text-slate-700">{new Date(todo.end_time).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+              <div>
+                <h3 className={`font-bold text-slate-700 ${todo.is_completed ? 'line-through text-slate-300 font-normal' : ''}`}>{todo.content}</h3>
+                {todo.description && <p className="text-xs text-slate-400 mt-0.5">{todo.description}</p>}
               </div>
             </div>
+            <button 
+              onClick={async () => { await supabase.from("todos").delete().eq("id", todo.id); fetchTodos(user.id); }}
+              className="text-xs text-slate-300 font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:text-rose-400"
+            >
+              삭제
+            </button>
           </div>
         ))}
       </div>
