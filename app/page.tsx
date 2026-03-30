@@ -24,6 +24,60 @@ interface EditData {
   end_time: string;
 }
 
+interface PlanTemplate {
+  id: string;
+  title: string;
+  description: string;
+  category: "면접" | "시험" | "업무 루틴" | "내 템플릿";
+  payload: {
+    rawInput: string;
+    description: string;
+    startTime: string;
+    endTime: string;
+  };
+}
+
+const LOCAL_TEMPLATE_KEY = "ai-planner-user-templates-v1";
+
+const BASIC_TEMPLATES: PlanTemplate[] = [
+  {
+    id: "base-interview",
+    title: "면접 준비 1일 루틴",
+    description: "회사 조사, 예상 질문, 자기소개 연습 순서로 정리합니다.",
+    category: "면접",
+    payload: {
+      rawInput: "면접 준비 루틴",
+      description: "1) 회사/직무 리서치\n2) 예상 질문 10개 답변 작성\n3) 1분 자기소개 리허설",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "base-exam",
+    title: "시험 대비 집중 블록",
+    description: "과목별 50분 집중 + 10분 휴식 사이클입니다.",
+    category: "시험",
+    payload: {
+      rawInput: "시험 대비 집중 학습",
+      description: "과목 A 50분 - 휴식 10분 - 과목 B 50분 - 오답 정리 30분",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "base-work",
+    title: "업무 시작 루틴",
+    description: "우선순위 점검, 메일 확인, 핵심 업무 1개 완료를 목표로 합니다.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "업무 시작 루틴",
+      description: "1) 오늘 우선순위 3개 선정\n2) 메일/메신저 20분 정리\n3) 핵심 업무 90분 딥워크",
+      startTime: "",
+      endTime: "",
+    },
+  },
+];
+
 const TodoPage = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [rawInput, setRawInput] = useState("");
@@ -33,6 +87,7 @@ const TodoPage = () => {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ id: string; email?: string | null } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [userTemplates, setUserTemplates] = useState<PlanTemplate[]>([]);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -47,6 +102,19 @@ const TodoPage = () => {
         void fetchTodos(u.id);
       }
     });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_TEMPLATE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as PlanTemplate[];
+      if (Array.isArray(parsed)) {
+        setUserTemplates(parsed);
+      }
+    } catch (error) {
+      console.error("템플릿 로드 실패:", error);
+    }
   }, []);
 
   const fetchTodos = async (userId: string) => {
@@ -180,6 +248,44 @@ const TodoPage = () => {
     if (user?.id) await fetchTodos(user.id);
   };
 
+  const applyTemplateToForm = (template: PlanTemplate) => {
+    setRawInput(template.payload.rawInput);
+    setDescription(template.payload.description);
+    setStartTime(template.payload.startTime);
+    setEndTime(template.payload.endTime);
+  };
+
+  const handleSaveCurrentAsTemplate = () => {
+    if (!rawInput.trim()) {
+      alert("템플릿으로 저장할 제목을 먼저 입력해 주세요.");
+      return;
+    }
+
+    const template: PlanTemplate = {
+      id: `user-${Date.now()}`,
+      title: rawInput.trim(),
+      description: description.trim() || "사용자가 저장한 템플릿",
+      category: "내 템플릿",
+      payload: {
+        rawInput: rawInput.trim(),
+        description: description.trim(),
+        startTime,
+        endTime,
+      },
+    };
+
+    const nextTemplates = [template, ...userTemplates].slice(0, 20);
+    setUserTemplates(nextTemplates);
+    localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(nextTemplates));
+    alert("내 템플릿으로 저장했습니다.");
+  };
+
+  const handleDeleteUserTemplate = (templateId: string) => {
+    const nextTemplates = userTemplates.filter((template) => template.id !== templateId);
+    setUserTemplates(nextTemplates);
+    localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(nextTemplates));
+  };
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#F8F9FD] p-6 pb-20 font-sans text-slate-900">
       <header className="flex justify-between items-center py-6">
@@ -193,17 +299,29 @@ const TodoPage = () => {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            supabase.auth.signOut().then(() => {
+        {user ? (
+          <button
+            type="button"
+            onClick={() =>
+              supabase.auth.signOut().then(() => {
+                window.location.href = "/login";
+              })
+            }
+            className="text-[11px] font-bold text-slate-400"
+          >
+            로그아웃
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
               window.location.href = "/login";
-            })
-          }
-          className="text-[11px] font-bold text-slate-400"
-        >
-          로그아웃
-        </button>
+            }}
+            className="text-[11px] font-bold text-emerald-600"
+          >
+            로그인
+          </button>
+        )}
       </header>
 
       <div className="bg-white rounded-[32px] p-7 shadow-2xl mb-8 border border-white">
@@ -221,6 +339,11 @@ const TodoPage = () => {
           </button>
         </div>
         <div className="space-y-5">
+          {!user && (
+            <p className="text-[12px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              일정 저장은 로그인 후 가능합니다. 먼저 로그인해 주세요.
+            </p>
+          )}
           <input
             className="w-full p-4 bg-[#F8F9FD] rounded-2xl text-[19px] font-black outline-none border-none"
             value={rawInput}
@@ -257,10 +380,58 @@ const TodoPage = () => {
           <button
             type="button"
             onClick={() => void handleAddTodo()}
-            className="w-full bg-[#1A202C] text-white py-5 rounded-3xl font-bold text-[18px] shadow-xl active:scale-95 transition-all mt-4"
+            disabled={!user}
+            className="w-full bg-[#1A202C] text-white py-5 rounded-3xl font-bold text-[18px] shadow-xl active:scale-95 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            일정 저장하기 🎊
+            {user ? "일정 저장하기 🎊" : "로그인 후 저장 가능"}
           </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[28px] p-5 shadow-sm border border-white mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Template Market</p>
+          <button
+            type="button"
+            onClick={handleSaveCurrentAsTemplate}
+            className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            현재 입력 템플릿 저장
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {[...BASIC_TEMPLATES, ...userTemplates].map((template) => (
+            <div key={template.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-black text-slate-800 truncate">{template.title}</p>
+                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{template.description}</p>
+                  <span className="inline-block mt-2 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    {template.category}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => applyTemplateToForm(template)}
+                    className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-[#1A202C] text-white"
+                  >
+                    적용
+                  </button>
+                  {template.category === "내 템플릿" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUserTemplate(template.id)}
+                      className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-rose-100 text-rose-600"
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
