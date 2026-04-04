@@ -12,6 +12,7 @@ export interface Todo {
   title: string;
   description: string | null;
   created_date: string;
+  start_date: string | null;
   due_date: string | null;
   priority: Priority;
   category: string[];

@@ -217,26 +217,38 @@ const Page = () => {
     async (data: TodoInsert) => {
       try {
         const supabase = createClient();
-        const { error } = await supabase.from('todos').insert({
-          user_id: userId,
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('인증이 만료되었습니다. 다시 로그인해 주세요.');
+
+        const insertPayload: Record<string, unknown> = {
+          user_id: user.id,
           title: data.title,
           description: data.description ?? null,
           due_date: data.due_date ?? null,
           priority: data.priority,
           category: data.category ?? [],
           completed: false,
-        });
+        };
+        // start_date 컬럼이 DB에 없으면 null 전송 시 오류 → 값 있을 때만 포함
+        if (data.start_date) insertPayload.start_date = data.start_date;
+
+        const { error } = await supabase.from('todos').insert(insertPayload);
 
         if (error) throw error;
-        await fetchTodos(userId);
+        await fetchTodos(user.id);
         closeForm();
         showNotification('success', '할 일이 추가되었습니다.');
       } catch (err) {
-        console.error('할 일 추가 실패:', err);
-        throw new Error('할 일을 추가할 수 없습니다. 다시 시도해 주세요.');
+        const msg =
+          err instanceof Error ? err.message
+          : (err && typeof err === 'object' && 'message' in err)
+            ? String((err as { message: unknown }).message)
+            : '할 일을 추가할 수 없습니다.';
+        console.error('할 일 추가 실패:', msg, err);
+        throw new Error(msg);
       }
     },
-    [userId, fetchTodos, closeForm, showNotification]
+    [fetchTodos, closeForm, showNotification]
   );
 
   /**
@@ -255,15 +267,18 @@ const Page = () => {
         console.log('[updateTodo] 전달된 due_date:', data.due_date);
         console.log('[updateTodo] todo id:', editingTodo.id);
 
+        const updatePayload: Record<string, unknown> = {
+          title: data.title,
+          description: data.description ?? null,
+          due_date: data.due_date ?? null,
+          priority: data.priority,
+          category: data.category ?? [],
+        };
+        if (data.start_date) updatePayload.start_date = data.start_date;
+
         const { error } = await supabase
           .from('todos')
-          .update({
-            title: data.title,
-            description: data.description ?? null,
-            due_date: data.due_date ?? null,
-            priority: data.priority,
-            category: data.category ?? [],
-          })
+          .update(updatePayload)
           .eq('id', editingTodo.id)
           .eq('user_id', user.id);
 
@@ -333,21 +348,27 @@ const Page = () => {
       setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
       try {
         const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('인증이 만료되었습니다.');
+
         const { error } = await supabase
           .from('todos')
           .update({ completed })
           .eq('id', id)
-          .eq('user_id', userId);
+          .eq('user_id', user.id);
 
         if (error) throw error;
+
+        // DB 업데이트 성공 후 서버 데이터와 재동기화
+        await fetchTodos(user.id);
       } catch (err) {
         console.error('완료 상태 변경 실패:', err);
-        // 실패 시 롤백
+        // 실패 시 낙관적 업데이트 롤백
         setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
         showNotification('error', '상태 변경에 실패했습니다. 다시 시도해 주세요.');
       }
     },
-    [userId, showNotification]
+    [fetchTodos, showNotification]
   );
 
   /**

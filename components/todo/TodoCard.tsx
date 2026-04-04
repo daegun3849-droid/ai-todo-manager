@@ -58,6 +58,34 @@ const isOverdue = (dueDate: string | null, completed: boolean) => {
   return new Date(dueDate) < new Date();
 };
 
+/**
+ * UTC ISO → KST "HH:mm" 문자열 (24시간제)
+ */
+const toKstTime = (isoStr: string) => {
+  const kst = new Date(new Date(isoStr).getTime() + 9 * 60 * 60 * 1000);
+  return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
+};
+
+/**
+ * UTC ISO → KST "M월 d일" 문자열
+ */
+const toKstDate = (isoStr: string) => {
+  const kst = new Date(new Date(isoStr).getTime() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
+};
+
+/**
+ * start_date / due_date → "4월 6일  11:00 ~ 14:00" 형태
+ */
+const formatDateTimeRange = (startDate: string | null, dueDate: string | null) => {
+  const base = startDate ?? dueDate;
+  if (!base) return '';
+  const dateStr = toKstDate(base);
+  if (startDate && dueDate) return `${dateStr}  ${toKstTime(startDate)} ~ ${toKstTime(dueDate)}`;
+  if (startDate) return `${dateStr}  ${toKstTime(startDate)} ~`;
+  return `${dateStr}  ~ ${toKstTime(dueDate!)}`;
+};
+
 export const TodoCard = ({
   todo,
   onToggleComplete,
@@ -149,10 +177,10 @@ export const TodoCard = ({
             {getPriorityLabel(todo.priority)}
           </Badge>
 
-          {todo.due_date && (
+          {(todo.start_date || todo.due_date) && (
             <Badge variant="outline" className={overdue ? 'border-destructive text-destructive' : ''}>
               <Calendar className="h-3 w-3 mr-1" />
-              {format(new Date(todo.due_date), 'M월 d일', { locale: ko })}
+              {formatDateTimeRange(todo.start_date, todo.due_date)}
               {overdue && ' (지연)'}
             </Badge>
           )}

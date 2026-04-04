@@ -116,10 +116,11 @@ create index idx_todos_due_date on public.todos (due_date);
 create index idx_todos_priority on public.todos (priority);
 
 -- ============================================================
--- 6. 기존 DB에 ai_summary 컬럼 추가 (신규 설치 시 불필요)
+-- 6. 기존 DB에 컬럼 추가 (신규 설치 시 불필요)
 -- ============================================================
 
 -- alter table public.todos add column if not exists ai_summary text;
+-- alter table public.todos add column if not exists start_date timestamptz;
 
 
 -- title + description 전문 검색(Full-Text Search)용 인덱스

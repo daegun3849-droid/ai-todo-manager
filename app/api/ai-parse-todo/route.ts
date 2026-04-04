@@ -20,6 +20,7 @@ type Priority = (typeof VALID_PRIORITIES)[number];
 interface ParsedTodo {
   title: string;
   due_date: string | null;
+  start_time: string | null;
   due_time: string;
   priority: Priority;
   category: string[];
@@ -121,14 +122,14 @@ const buildPrompt = (text: string): { prompt: string; todayStr: string } => {
 - 날짜 언급 없음 → null
 
 === 시간 처리 규칙 ===
-- "아침" → "09:00"
-- "점심" / "낮" → "12:00"
-- "오후" (시각 미지정) → "14:00"
-- "저녁" → "18:00"
-- "밤" / "야간" → "21:00"
-- "오전 N시" → "0N:00" (24시간제)
-- "오후 N시" → N+12시 (예: 오후 3시 → "15:00")
-- 시간 언급 없음 → "09:00"
+- 시작 시간(start_time)과 마감 시간(due_time)을 분리해 추출하세요.
+- 시간이 하나만 언급된 경우 → start_time: null, due_time: 해당 시간
+- 두 시간이 언급된 경우("출근·시작·부터" → start_time, "퇴근·마감·까지" → due_time)
+- "A시부터 B시까지", "A시 ~ B시", "오전 A시 … 오후 B시" 패턴 인식
+- "아침" → "09:00" / "점심·낮" → "12:00" / "오후(미지정)" → "14:00"
+- "저녁" → "18:00" / "밤·야간" → "21:00"
+- "오전 N시" → 24시간제 "0N:00" / "오후 N시" → N+12 (예: 오후 2시 → "14:00")
+- 시간 언급 없음 → start_time: null, due_time: "09:00"
 
 === 우선순위 키워드 ===
 - high  : "급하게", "중요한", "빨리", "꼭", "반드시", "긴급", "즉시", "빠른"
@@ -147,6 +148,7 @@ const buildPrompt = (text: string): { prompt: string; todayStr: string } => {
 {
   "title": "핵심 동작과 대상만 포함한 간결한 제목 (날짜·시간·우선순위 키워드 제외)",
   "due_date": "YYYY-MM-DD 또는 null",
+  "start_time": "HH:MM (24시간제) 또는 null",
   "due_time": "HH:MM (24시간제)",
   "priority": "high | medium | low",
   "category": ["카테고리"]
@@ -188,6 +190,10 @@ const postProcess = (
   const dueDate = rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
   const isPastDate = dueDate !== null && dueDate < todayStr;
 
+  // start_time (없으면 null)
+  const rawStartTime = typeof raw.start_time === 'string' ? raw.start_time : '';
+  const startTime = /^\d{2}:\d{2}$/.test(rawStartTime) ? rawStartTime : null;
+
   // due_time (기본값: 09:00)
   const rawTime = typeof raw.due_time === 'string' ? raw.due_time : '';
   const dueTime = /^\d{2}:\d{2}$/.test(rawTime) ? rawTime : '09:00';
@@ -211,6 +217,7 @@ const postProcess = (
   return {
     title,
     due_date: dueDate,
+    start_time: startTime,
     due_time: dueTime,
     priority,
     category,
