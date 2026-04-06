@@ -362,10 +362,15 @@ const Page = () => {
         // DB 업데이트 성공 후 서버 데이터와 재동기화
         await fetchTodos(user.id);
       } catch (err) {
-        console.error('완료 상태 변경 실패:', err);
+        const msg =
+          err instanceof Error ? err.message
+          : (err && typeof err === 'object' && 'message' in err)
+            ? String((err as { message: unknown }).message)
+            : '알 수 없는 오류';
+        console.error('완료 상태 변경 실패:', msg, err);
         // 실패 시 낙관적 업데이트 롤백
         setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
-        showNotification('error', '상태 변경에 실패했습니다. 다시 시도해 주세요.');
+        showNotification('error', `상태 변경 실패: ${msg}`);
       }
     },
     [fetchTodos, showNotification]
