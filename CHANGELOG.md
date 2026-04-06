@@ -26,7 +26,23 @@
 
 ---
 
-## 다음 할 일 (내일 이어서)
+## 2026-04-07 (사무실)
+
+### 완료
+- 머지 충돌 추가 발견 및 전체 해결
+  - `app/api/ai-parse-todo/route.ts`
+  - `app/api/ai-todos-analysis/route.ts`
+  - `lib/supabase/client.ts`
+  - `types/todo.ts`
+  - `tsconfig.json`
+  - `package.json`
+- `middleware.ts` / `proxy.ts` 중복 충돌 → `middleware.ts` 삭제로 해결
+- `@ai-sdk/groq` 패키지 설치
+- 빌드 정상화 완료 후 Vercel 재배포
+
+---
+
+## 다음 할 일
 
 1. 무료/유료 템플릿 구분 UI
    - 무료 5개 → `적용` 가능

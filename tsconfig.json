@@ -29,11 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-<<<<<<< HEAD
-, ".next/middleware.ts"  ],
-  "exclude": ["node_modules"]
-=======
   ],
   "exclude": ["node_modules", "ai-todo-manager"]
->>>>>>> e0c6404a2a0939c533dec3f008e7226dfdbc7b15
 }
