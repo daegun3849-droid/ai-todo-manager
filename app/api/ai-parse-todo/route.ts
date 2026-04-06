@@ -4,8 +4,10 @@
  *
  * 처리 단계: 전처리 → 입력 검증 → AI 호출 → 후처리 → 응답
  */
-import { google } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
 import { NextRequest, NextResponse } from 'next/server';
 
 // ── 상수 ──────────────────────────────────────────────────────────
@@ -293,7 +295,7 @@ export const POST = async (req: NextRequest) => {
   }
 
   // ④ 환경 변수 확인
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return NextResponse.json(
       { error: 'AI 서비스가 설정되지 않았습니다. 관리자에게 문의해 주세요.' },
       { status: 503 }
@@ -306,7 +308,7 @@ export const POST = async (req: NextRequest) => {
 
   try {
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: groq('llama-3.3-70b-versatile'),
       prompt,
     });
     aiResponse = text;

@@ -2,8 +2,10 @@
  * AI 할 일 분석 API 라우트
  * 사용자의 할 일 목록을 다각도로 분석해 요약, 인사이트, 추천 사항을 생성합니다.
  */
-import { google } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
 import { NextRequest, NextResponse } from 'next/server';
 import type { AiAnalysisResult } from '@/types/todo';
 
@@ -266,7 +268,7 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return NextResponse.json(
         { error: 'AI 서비스가 설정되지 않았습니다. 관리자에게 문의해 주세요.' },
         { status: 503 }
@@ -294,7 +296,7 @@ export const POST = async (req: NextRequest) => {
     const prompt = buildPrompt(todos, period, todayStr, kstNow);
 
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: groq('llama-3.3-70b-versatile'),
       prompt,
     });
 
