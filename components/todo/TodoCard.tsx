@@ -4,10 +4,10 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { Todo } from '@/types/todo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Edit, Trash2, Sparkles, Clock, RotateCcw } from 'lucide-react';
@@ -58,6 +58,34 @@ const isOverdue = (dueDate: string | null, completed: boolean) => {
   return new Date(dueDate) < new Date();
 };
 
+/**
+ * UTC ISO → KST "HH:mm" 문자열 (24시간제)
+ */
+const toKstTime = (isoStr: string) => {
+  const kst = new Date(new Date(isoStr).getTime() + 9 * 60 * 60 * 1000);
+  return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
+};
+
+/**
+ * UTC ISO → KST "M월 d일" 문자열
+ */
+const toKstDate = (isoStr: string) => {
+  const kst = new Date(new Date(isoStr).getTime() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
+};
+
+/**
+ * start_date / due_date → "4월 6일  11:00 ~ 14:00" 형태
+ */
+const formatDateTimeRange = (startDate: string | null, dueDate: string | null) => {
+  const base = startDate ?? dueDate;
+  if (!base) return '';
+  const dateStr = toKstDate(base);
+  if (startDate && dueDate) return `${dateStr}  ${toKstTime(startDate)} ~ ${toKstTime(dueDate)}`;
+  if (startDate) return `${dateStr}  ${toKstTime(startDate)} ~`;
+  return `${dateStr}  ~ ${toKstTime(dueDate!)}`;
+};
+
 export const TodoCard = ({
   todo,
   onToggleComplete,
@@ -65,9 +93,28 @@ export const TodoCard = ({
   onDelete,
   onAiSummaryUpdate,
 }: TodoCardProps) => {
-  const overdue = isOverdue(todo.due_date, todo.completed);
+  const [isCompleted, setIsCompleted] = useState(todo.completed);
+  const overdue = isOverdue(todo.due_date, isCompleted);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsCompleted(todo.completed);
+  }, [todo.completed]);
+
+  const handleToggle = () => {
+    const next = !isCompleted;
+    setIsCompleted(next);
+    if (next) {
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#a855f7', '#6366f1', '#22c55e', '#facc15'],
+      });
+    }
+    onToggleComplete(todo.id, next);
+  };
 
   /**
    * AI 요약 생성 요청
@@ -93,17 +140,18 @@ export const TodoCard = ({
   };
 
   return (
-    <Card className={`${overdue ? 'border-destructive' : ''} ${todo.completed ? 'opacity-60' : ''}`}>
+    <Card className={`transition-all duration-200 ${overdue ? 'border-destructive' : ''} ${isCompleted ? 'opacity-60 bg-gray-50' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3 flex-1">
-            <Checkbox
-              checked={todo.completed}
-              onCheckedChange={(checked) => onToggleComplete(todo.id, checked as boolean)}
-              className="mt-1"
+            <input
+              type="checkbox"
+              checked={isCompleted}
+              onChange={handleToggle}
+              className="mt-1.5 h-4 w-4 cursor-pointer accent-violet-600"
             />
             <div className="flex-1">
-              <CardTitle className={`text-lg ${todo.completed ? 'line-through text-muted-foreground' : ''}`}>
+              <CardTitle className={`text-lg transition-all duration-200 ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
                 {todo.title}
               </CardTitle>
               {todo.description && (
@@ -149,10 +197,10 @@ export const TodoCard = ({
             {getPriorityLabel(todo.priority)}
           </Badge>
 
-          {todo.due_date && (
+          {(todo.start_date || todo.due_date) && (
             <Badge variant="outline" className={overdue ? 'border-destructive text-destructive' : ''}>
               <Calendar className="h-3 w-3 mr-1" />
-              {format(new Date(todo.due_date), 'M월 d일', { locale: ko })}
+              {formatDateTimeRange(todo.start_date, todo.due_date)}
               {overdue && ' (지연)'}
             </Badge>
           )}

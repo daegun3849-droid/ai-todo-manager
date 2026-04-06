@@ -280,11 +280,330 @@ const TodoPage = () => {
     alert("내 템플릿으로 저장했습니다.");
   };
 
+<<<<<<< HEAD
   const handleDeleteUserTemplate = (templateId: string) => {
     const nextTemplates = userTemplates.filter((template) => template.id !== templateId);
     setUserTemplates(nextTemplates);
     localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(nextTemplates));
   };
+=======
+  /**
+   * 인증 상태 실시간 감지
+   */
+  useEffect(() => {
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        router.push('/login');
+        return;
+      }
+      if (event === 'SIGNED_IN' && session) {
+        setUserName(session.user.user_metadata?.full_name ?? '');
+        setUserEmail(session.user.email ?? '');
+        setUserId(session.user.id);
+      }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        setUserEmail(session.user.email ?? '');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  /** 탭 카운트 */
+  const tabCounts = useMemo(() => ({
+    all: todos.length,
+    completed: todos.filter((t) => t.completed).length,
+    in_progress: todos.filter((t) => !t.completed).length,
+  }), [todos]);
+
+  /**
+   * 탭 + 검색 + 필터 + 정렬 적용된 목록
+   */
+  const filteredTodos = useMemo(() => {
+    let result = [...todos];
+
+    // 탭 필터
+    if (activeTab === 'completed') result = result.filter((t) => t.completed);
+    else if (activeTab === 'in_progress') result = result.filter((t) => !t.completed);
+
+    // 제목 검색
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((t) => t.title.toLowerCase().includes(q));
+    }
+
+    // 상태 필터
+    if (statusFilter === 'in_progress') {
+      result = result.filter(
+        (t) => !t.completed && (!t.due_date || new Date(t.due_date) >= new Date())
+      );
+    } else if (statusFilter === 'completed') {
+      result = result.filter((t) => t.completed);
+    } else if (statusFilter === 'overdue') {
+      result = result.filter(
+        (t) => !t.completed && t.due_date && new Date(t.due_date) < new Date()
+      );
+    }
+
+    // 우선순위 필터
+    if (priorityFilter !== 'all') {
+      result = result.filter((t) => t.priority === priorityFilter);
+    }
+
+    // 정렬
+    const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+    result.sort((a, b) => {
+      if (sortOption === 'priority') return priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (sortOption === 'due_date') {
+        const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+        const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+        return da - db;
+      }
+      if (sortOption === 'title') return a.title.localeCompare(b.title, 'ko');
+      return new Date(b.created_date).getTime() - new Date(a.created_date).getTime();
+    });
+
+    return result;
+  }, [todos, activeTab, searchQuery, statusFilter, priorityFilter, sortOption]);
+
+  const openForm = useCallback((todo?: Todo) => {
+    setEditingTodo(todo ?? null);
+    setIsFormOpen(true);
+  }, []);
+
+  const closeForm = useCallback(() => {
+    setIsFormOpen(false);
+    setEditingTodo(null);
+  }, []);
+
+  /**
+   * 할 일 생성
+   */
+  const handleAddTodo = useCallback(
+    async (data: TodoInsert) => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('인증이 만료되었습니다. 다시 로그인해 주세요.');
+
+        const insertPayload: Record<string, unknown> = {
+          user_id: user.id,
+          title: data.title,
+          description: data.description ?? null,
+          due_date: data.due_date ?? null,
+          priority: data.priority,
+          category: data.category ?? [],
+          completed: false,
+        };
+        // start_date 컬럼이 DB에 없으면 null 전송 시 오류 → 값 있을 때만 포함
+        if (data.start_date) insertPayload.start_date = data.start_date;
+
+        const { error } = await supabase.from('todos').insert(insertPayload);
+
+        if (error) throw error;
+        await fetchTodos(user.id);
+        closeForm();
+        showNotification('success', '할 일이 추가되었습니다.');
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message
+          : (err && typeof err === 'object' && 'message' in err)
+            ? String((err as { message: unknown }).message)
+            : '할 일을 추가할 수 없습니다.';
+        console.error('할 일 추가 실패:', msg, err);
+        throw new Error(msg);
+      }
+    },
+    [fetchTodos, closeForm, showNotification]
+  );
+
+  /**
+   * 할 일 수정
+   */
+  const handleUpdateTodo = useCallback(
+    async (data: TodoInsert) => {
+      if (!editingTodo) return;
+      try {
+        const supabase = createClient();
+
+        // userId 상태 대신 세션에서 직접 가져와 stale 클로저 문제 방지
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('인증이 만료되었습니다. 다시 로그인해 주세요.');
+
+        console.log('[updateTodo] 전달된 due_date:', data.due_date);
+        console.log('[updateTodo] todo id:', editingTodo.id);
+
+        const updatePayload: Record<string, unknown> = {
+          title: data.title,
+          description: data.description ?? null,
+          due_date: data.due_date ?? null,
+          priority: data.priority,
+          category: data.category ?? [],
+        };
+        if (data.start_date) updatePayload.start_date = data.start_date;
+
+        const { error } = await supabase
+          .from('todos')
+          .update(updatePayload)
+          .eq('id', editingTodo.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        await fetchTodos(user.id);
+        closeForm();
+        showNotification('success', '할 일이 수정되었습니다.');
+      } catch (err) {
+        console.error('할 일 수정 실패:', err);
+        throw new Error(err instanceof Error ? err.message : '할 일을 수정할 수 없습니다. 다시 시도해 주세요.');
+      }
+    },
+    [editingTodo, fetchTodos, closeForm, showNotification]
+  );
+
+  const handleFormSubmit = useCallback(
+    async (data: TodoInsert) => {
+      if (editingTodo) {
+        await handleUpdateTodo(data);
+      } else {
+        await handleAddTodo(data);
+      }
+    },
+    [editingTodo, handleAddTodo, handleUpdateTodo]
+  );
+
+  /**
+   * 삭제 버튼 클릭 → 확인 다이얼로그 표시
+   */
+  const handleDeleteClick = useCallback((id: string) => {
+    setDeletingTodoId(id);
+  }, []);
+
+  /**
+   * 삭제 확인 → Supabase 삭제 실행 + 재조회
+   */
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deletingTodoId) return;
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('인증이 만료되었습니다.');
+
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', deletingTodoId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      await fetchTodos(user.id);
+      showNotification('success', '할 일이 삭제되었습니다.');
+    } catch (err) {
+      console.error('할 일 삭제 실패:', err);
+      showNotification('error', err instanceof Error ? err.message : '할 일을 삭제할 수 없습니다. 다시 시도해 주세요.');
+    } finally {
+      setDeletingTodoId(null);
+    }
+  }, [deletingTodoId, fetchTodos, showNotification]);
+
+  /**
+   * 완료 상태 토글
+   */
+  const handleToggleComplete = useCallback(
+    async (id: string, completed: boolean) => {
+      // 낙관적 업데이트 (즉각 UI 반영)
+      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('인증이 만료되었습니다.');
+
+        const { error } = await supabase
+          .from('todos')
+          .update({ completed })
+          .eq('id', id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        // DB 업데이트 성공 후 서버 데이터와 재동기화
+        await fetchTodos(user.id);
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message
+          : (err && typeof err === 'object' && 'message' in err)
+            ? String((err as { message: unknown }).message)
+            : '알 수 없는 오류';
+        console.error('완료 상태 변경 실패:', msg, err);
+        // 실패 시 낙관적 업데이트 롤백
+        setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !completed } : t)));
+        showNotification('error', `상태 변경 실패: ${msg}`);
+      }
+    },
+    [fetchTodos, showNotification]
+  );
+
+  /**
+   * AI 요약 저장 (Supabase 업데이트 + 로컬 상태 반영)
+   */
+  const handleAiSummaryUpdate = useCallback(
+    async (id: string, summary: string) => {
+      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ai_summary: summary } : t)));
+      try {
+        const supabase = createClient();
+        const { error } = await supabase
+          .from('todos')
+          .update({ ai_summary: summary })
+          .eq('id', id)
+          .eq('user_id', userId);
+        if (error) throw error;
+      } catch (err) {
+        console.error('AI 요약 저장 실패:', err);
+        showNotification('error', 'AI 요약을 저장하지 못했습니다. 다시 시도해 주세요.');
+      }
+    },
+    [userId, showNotification]
+  );
+
+  /**
+   * 로그아웃
+   */
+  const handleLogout = useCallback(async () => {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error('로그아웃에 실패했습니다.');
+    router.push('/login?logout=true');
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3 text-gray-500">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
+          <p className="text-sm">불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center space-y-3">
+          <p className="text-red-500 font-medium">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-gray-500 underline"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
+>>>>>>> e0c6404a2a0939c533dec3f008e7226dfdbc7b15
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#F8F9FD] p-6 pb-20 font-sans text-slate-900">

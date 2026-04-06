@@ -20,7 +20,7 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon, Sparkles, X } from 'lucide-react';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface TodoFormProps {
@@ -48,8 +48,12 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
     const d = new Date(todo.due_date);
     return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   });
+  const [startTime, setStartTime] = useState<string>(() => {
+    if (!todo?.start_date) return '09:00';
+    return extractKstTime(todo.start_date);
+  });
   const [dueTime, setDueTime] = useState<string>(() => {
-    if (!todo?.due_date) return '09:00';
+    if (!todo?.due_date) return '18:00';
     return extractKstTime(todo.due_date);
   });
   const [priority, setPriority] = useState<Priority>(todo?.priority || 'medium');
@@ -94,12 +98,14 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
       if (data.priority) setPriority(data.priority as Priority);
       if (data.category?.length) setCategoryInput((data.category as string[]).join(', '));
 
-      if (data.due_date) {
-        // "YYYY-MM-DD" 문자열을 로컬 Date로 변환
-        const parsed = parse(data.due_date, 'yyyy-MM-dd', new Date());
-        setDueDate(parsed);
+      if (data.due_date && /^\d{4}-\d{2}-\d{2}$/.test(data.due_date)) {
+        const [y, m, d] = data.due_date.split('-').map(Number);
+        setDueDate(new Date(y, m - 1, d));
       }
 
+      if (data.start_time) {
+        setStartTime(data.start_time);
+      }
       if (data.due_time) {
         setDueTime(data.due_time);
       }
@@ -135,19 +141,18 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
         .filter((cat: any) => cat.length > 0);
 
       // 날짜 + 시간 → KST 기준 ISO 문자열 생성
+      let startDateValue: string | null = null;
       let dueDateValue: string | null = null;
       if (dueDate) {
         const dateStr = format(dueDate, 'yyyy-MM-dd');
-        const timeStr = dueTime || '09:00';
-        dueDateValue = new Date(`${dateStr}T${timeStr}:00+09:00`).toISOString();
+        startDateValue = new Date(`${dateStr}T${startTime}:00+09:00`).toISOString();
+        dueDateValue   = new Date(`${dateStr}T${dueTime}:00+09:00`).toISOString();
       }
-
-      console.log('[TodoForm] 폼 제출 dueDate state:', dueDate);
-      console.log('[TodoForm] 전송할 due_date:', dueDateValue);
 
       await onSubmit({
         title: title.trim(),
         description: description.trim() || null,
+        start_date: startDateValue,
         due_date: dueDateValue,
         priority,
         category: categories,
@@ -159,7 +164,8 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
         setTitle('');
         setDescription('');
         setDueDate(undefined);
-        setDueTime('09:00');
+        setStartTime('09:00');
+        setDueTime('18:00');
         setPriority('medium');
         setCategoryInput('');
         setAiInput('');
@@ -234,32 +240,42 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="title">제목 *</Label>
+      {/* 제목 */}
+      <div className="space-y-1.5 p-3 rounded-lg bg-blue-50 border border-blue-200">
+        <Label htmlFor="title" className="text-sm font-bold text-blue-800">
+          📌 제목 <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="할 일을 입력하세요"
+          placeholder="예: 팀 회의 준비"
           disabled={isSubmitting}
           required
+          className="bg-white font-semibold text-base border-blue-300"
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description">설명</Label>
+      {/* 설명 */}
+      <div className="space-y-1.5 p-3 rounded-lg bg-gray-50 border border-gray-200">
+        <Label htmlFor="description" className="text-sm font-medium text-gray-500">
+          📝 설명 <span className="text-xs font-normal text-gray-400">(선택)</span>
+        </Label>
         <Textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="상세 설명을 입력하세요 (선택)"
-          rows={3}
+          placeholder="상세 내용, 메모 등..."
+          rows={2}
           disabled={isSubmitting}
+          className="resize-none text-sm bg-white border-gray-300"
         />
       </div>
 
       <div className="space-y-2">
         <Label>마감일 및 시간</Label>
+
+        {/* 날짜 선택 */}
         <div className="flex gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -269,7 +285,9 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
                 disabled={isSubmitting}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dueDate ? format(dueDate, 'PPP', { locale: ko }) : '마감일 선택 (선택)'}
+                {dueDate
+                  ? `${format(dueDate, 'PPP', { locale: ko })}  ${startTime} ~ ${dueTime}`
+                  : '날짜 선택 (선택)'}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
@@ -282,22 +300,12 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
             </PopoverContent>
           </Popover>
 
-          {/* 시간 입력 */}
-          <Input
-            type="time"
-            value={dueTime}
-            onChange={(e) => setDueTime(e.target.value)}
-            disabled={isSubmitting || !dueDate}
-            className="w-28 text-sm"
-            aria-label="마감 시간"
-          />
-
           {dueDate && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => { setDueDate(undefined); setDueTime('09:00'); }}
+              onClick={() => { setDueDate(undefined); setStartTime('09:00'); setDueTime('18:00'); }}
               disabled={isSubmitting}
               aria-label="날짜 초기화"
             >
@@ -305,8 +313,88 @@ export const TodoForm = ({ todo, onSubmit, onCancel }: TodoFormProps) => {
             </Button>
           )}
         </div>
+
+        {/* 시작/마감 시간 — 24시간제 */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* 시작 시간 */}
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">시작 시간</p>
+            <div className="flex items-center gap-1">
+              <Select
+                value={startTime.split(':')[0]}
+                onValueChange={(h) => setStartTime(`${h}:${startTime.split(':')[1] ?? '00'}`)}
+                disabled={isSubmitting || !dueDate}
+              >
+                <SelectTrigger className="w-[4.5rem] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-52 overflow-y-auto">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const v = String(i).padStart(2, '0');
+                    return <SelectItem key={v} value={v}>{v}시</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+              <span className="text-gray-400 text-sm">:</span>
+              <Select
+                value={startTime.split(':')[1] ?? '00'}
+                onValueChange={(m) => setStartTime(`${startTime.split(':')[0] ?? '09'}:${m}`)}
+                disabled={isSubmitting || !dueDate}
+              >
+                <SelectTrigger className="w-[4.5rem] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['00', '10', '20', '30', '40', '50'].map((m) => (
+                    <SelectItem key={m} value={m}>{m}분</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* 마감 시간 */}
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">마감 시간</p>
+            <div className="flex items-center gap-1">
+              <Select
+                value={dueTime.split(':')[0]}
+                onValueChange={(h) => setDueTime(`${h}:${dueTime.split(':')[1] ?? '00'}`)}
+                disabled={isSubmitting || !dueDate}
+              >
+                <SelectTrigger className="w-[4.5rem] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-52 overflow-y-auto">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const v = String(i).padStart(2, '0');
+                    return <SelectItem key={v} value={v}>{v}시</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+              <span className="text-gray-400 text-sm">:</span>
+              <Select
+                value={dueTime.split(':')[1] ?? '00'}
+                onValueChange={(m) => setDueTime(`${dueTime.split(':')[0] ?? '18'}:${m}`)}
+                disabled={isSubmitting || !dueDate}
+              >
+                <SelectTrigger className="w-[4.5rem] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['00', '10', '20', '30', '40', '50'].map((m) => (
+                    <SelectItem key={m} value={m}>{m}분</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
         {!dueDate && (
-          <p className="text-xs text-muted-foreground">날짜를 선택해야 시간을 설정할 수 있습니다.</p>
+          <p className="text-xs text-muted-foreground">
+            날짜를 선택해야 시간을 설정할 수 있습니다.
+          </p>
         )}
       </div>
 

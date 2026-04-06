@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 중복 내부 프로젝트 폴더 제외
+/ai-todo-manager/
