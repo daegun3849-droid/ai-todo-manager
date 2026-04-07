@@ -7,6 +7,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import confetti from "canvas-confetti";
+import { DateTimePicker } from "@/components/ui/DateTimePicker";
 
 interface Todo {
   id: string;
@@ -427,24 +428,20 @@ const TodoPage = () => {
                   placeholder="상세 내용 (AI 자동완성 시 자동 입력)"
                 />
                 <div className="flex gap-3 md:gap-4">
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[11px] md:text-[13px] font-black text-slate-400 block mb-1">시작</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[12px] md:text-[14px] font-bold outline-none border-none"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[11px] md:text-[13px] font-black text-rose-400 block mb-1">마감</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[12px] md:text-[14px] font-bold outline-none border-none text-rose-500"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                    />
-                  </div>
+                  <DateTimePicker
+                    value={startTime}
+                    onChange={setStartTime}
+                    label="시작"
+                    placeholder="날짜 선택"
+                  />
+                  <DateTimePicker
+                    value={endTime}
+                    onChange={setEndTime}
+                    label="마감"
+                    labelColor="text-rose-400"
+                    placeholder="날짜 선택"
+                    timeColor="text-rose-500"
+                  />
                 </div>
                 <button
                   type="button"
@@ -587,24 +584,20 @@ const TodoPage = () => {
                   placeholder="상세 내용"
                 />
                 <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-[10px] font-black text-slate-400 block mb-1">시작</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full p-2 bg-[#F8F9FD] rounded-lg text-[11px] font-bold outline-none"
-                      value={editData.start_time}
-                      onChange={(e) => setEditData((p) => ({ ...p, start_time: e.target.value }))}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-black text-rose-400 block mb-1">마감</label>
-                    <input
-                      type="datetime-local"
-                      className="w-full p-2 bg-[#F8F9FD] rounded-lg text-[11px] font-bold outline-none text-rose-500"
-                      value={editData.end_time}
-                      onChange={(e) => setEditData((p) => ({ ...p, end_time: e.target.value }))}
-                    />
-                  </div>
+                  <DateTimePicker
+                    value={editData.start_time}
+                    onChange={(v) => setEditData((p) => ({ ...p, start_time: v }))}
+                    label="시작"
+                    placeholder="날짜 선택"
+                  />
+                  <DateTimePicker
+                    value={editData.end_time}
+                    onChange={(v) => setEditData((p) => ({ ...p, end_time: v }))}
+                    label="마감"
+                    labelColor="text-rose-400"
+                    placeholder="날짜 선택"
+                    timeColor="text-rose-500"
+                  />
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button
