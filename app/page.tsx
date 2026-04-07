@@ -37,6 +37,13 @@ interface PlanTemplate {
   };
 }
 
+interface ParsedSchedule {
+  title: string;
+  desc: string;
+  start: string;
+  end: string;
+}
+
 const LOCAL_TEMPLATE_KEY = "ai-planner-user-templates-v1";
 
 const BASIC_TEMPLATES: PlanTemplate[] = [
@@ -88,6 +95,8 @@ const TodoPage = () => {
   const [user, setUser] = useState<{ id: string; email?: string | null } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [userTemplates, setUserTemplates] = useState<PlanTemplate[]>([]);
+  const [pendingSchedules, setPendingSchedules] = useState<ParsedSchedule[]>([]);
+  const [savingAll, setSavingAll] = useState(false);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -151,28 +160,76 @@ const TodoPage = () => {
       return;
     }
     setLoading(true);
+    setPendingSchedules([]);
     try {
       const res = await fetch("/api/ai-parse-todo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText: rawInput.trim() }),
       });
-      const result = await res.json();
+      const result = await res.json() as ParsedSchedule[] | { error: string };
       if (!res.ok) {
-        throw new Error(result.error || "AI 분석에 실패했습니다.");
+        throw new Error(("error" in result ? result.error : null) || "AI 분석에 실패했습니다.");
       }
-      if (result.title) setRawInput(result.title);
-      if (result.desc) setDescription(result.desc);
-      const start = formatForInput(result.start);
-      const end = formatForInput(result.end);
-      if (start) setStartTime(start);
-      if (end) setEndTime(end);
+      if (!Array.isArray(result)) {
+        throw new Error("AI 응답 형식이 올바르지 않습니다.");
+      }
+
+      if (result.length === 1) {
+        // 일정 1개: 기존처럼 폼에 채워주기
+        const item = result[0];
+        if (item.title) setRawInput(item.title);
+        if (item.desc) setDescription(item.desc);
+        const start = formatForInput(item.start);
+        const end = formatForInput(item.end);
+        if (start) setStartTime(start);
+        if (end) setEndTime(end);
+      } else {
+        // 일정 여러 개: 미리보기 목록으로 보여주기
+        setPendingSchedules(result);
+      }
     } catch (e) {
       console.error("AI 자동완성 실패:", e);
       alert(`AI 분석 실패: ${e instanceof Error ? e.message : "알 수 없는 오류"}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveAllPending = async () => {
+    if (!user?.id || pendingSchedules.length === 0) return;
+    setSavingAll(true);
+    try {
+      const rows = pendingSchedules.map((s) => ({
+        title: s.title,
+        description: s.desc || "",
+        start_time: formatForInput(s.start) || new Date().toISOString(),
+        end_time: formatForInput(s.end) || new Date().toISOString(),
+        user_id: user.id,
+        is_completed: false,
+      }));
+      const { error } = await supabase.from("todos").insert(rows);
+      if (error) {
+        alert(`저장 실패: ${error.message}`);
+        return;
+      }
+      confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } });
+      setPendingSchedules([]);
+      setRawInput("");
+      setDescription("");
+      setStartTime("");
+      setEndTime("");
+      await fetchTodos(user.id);
+    } catch (e) {
+      console.error("일괄 저장 실패:", e);
+      alert("저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingAll(false);
+    }
+  };
+
+  const handleRemovePending = (idx: number) => {
+    setPendingSchedules((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleAddTodo = async () => {
@@ -288,175 +345,242 @@ const TodoPage = () => {
 
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#F8F9FD] p-6 pb-20 font-sans text-slate-900">
-      <header className="flex justify-between items-center py-6">
-        <div>
-          <h1 className="text-[30px] font-black text-[#1A202C] tracking-tighter italic uppercase">
-            AI Planner
-          </h1>
-          {user && (
-            <p className="text-[12px] font-bold text-[#22C55E]">
-              반갑습니다, {user.email?.split("@")[0]}님!
-            </p>
-          )}
-        </div>
-        {user ? (
-          <button
-            type="button"
-            onClick={() =>
-              supabase.auth.signOut().then(() => {
-                window.location.href = "/login";
-              })
-            }
-            className="text-[11px] font-bold text-slate-400"
-          >
-            로그아웃
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              window.location.href = "/login";
-            }}
-            className="text-[11px] font-bold text-emerald-600"
-          >
-            로그인
-          </button>
-        )}
-      </header>
+    <div className="min-h-screen bg-[#F8F9FD] font-sans text-slate-900">
+      {/* 전체 최대 너비 컨테이너 */}
+      <div className="max-w-md md:max-w-6xl mx-auto px-4 md:px-10 pb-20">
 
-      <div className="bg-white rounded-[32px] p-7 shadow-2xl mb-8 border border-white">
-        <div className="flex justify-between items-center mb-6">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-            Plan Details
-          </span>
-          <button
-            type="button"
-            onClick={() => void handleAIAutoFill()}
-            disabled={loading}
-            className="text-[12px] font-bold bg-[#F0FDF4] text-[#22C55E] px-5 py-2.5 rounded-full active:scale-95 transition-all disabled:opacity-50"
-          >
-            ✨ {loading ? "분석 중..." : "AI 자동완성"}
-          </button>
-        </div>
-        <div className="space-y-5">
-          {!user && (
-            <p className="text-[12px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-              일정 저장은 로그인 후 가능합니다. 먼저 로그인해 주세요.
-            </p>
-          )}
-          <input
-            className="w-full p-4 bg-[#F8F9FD] rounded-2xl text-[19px] font-black outline-none border-none"
-            value={rawInput}
-            onChange={(e) => setRawInput(e.target.value)}
-            placeholder="일정 제목 또는 자연어 입력"
-          />
-          <textarea
-            className="w-full p-4 bg-[#F8F9FD] rounded-2xl text-[14px] text-slate-500 font-medium outline-none border-none resize-none whitespace-pre-line"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="상세 내용 (AI 자동완성 시 자동 입력)"
-          />
-          <div className="flex gap-3">
-            <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-black text-slate-400 block mb-1">시작</label>
-              <input
-                type="datetime-local"
-                className="w-full p-3 bg-[#F8F9FD] rounded-xl text-[12px] font-bold outline-none border-none"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-black text-rose-400 block mb-1">마감</label>
-              <input
-                type="datetime-local"
-                className="w-full p-3 bg-[#F8F9FD] rounded-xl text-[12px] font-bold outline-none border-none text-rose-500"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
-            </div>
+        {/* 헤더 */}
+        <header className="flex justify-between items-center py-6 md:py-10">
+          <div>
+            <h1 className="text-[30px] md:text-[48px] font-black text-[#1A202C] tracking-tighter italic uppercase">
+              AI Planner
+            </h1>
+            {user && (
+              <p className="text-[12px] md:text-[15px] font-bold text-[#22C55E] mt-0.5">
+                반갑습니다, {user.email?.split("@")[0]}님!
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void handleAddTodo()}
-            disabled={!user}
-            className="w-full bg-[#1A202C] text-white py-5 rounded-3xl font-bold text-[18px] shadow-xl active:scale-95 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {user ? "일정 저장하기 🎊" : "로그인 후 저장 가능"}
-          </button>
-        </div>
-      </div>
+          {user ? (
+            <button
+              type="button"
+              onClick={() =>
+                supabase.auth.signOut().then(() => {
+                  window.location.href = "/login";
+                })
+              }
+              className="text-[11px] md:text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              로그아웃
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/login";
+              }}
+              className="text-[11px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
+              로그인
+            </button>
+          )}
+        </header>
 
-      <div className="bg-white rounded-[28px] p-5 shadow-sm border border-white mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Template Market</p>
-          <button
-            type="button"
-            onClick={handleSaveCurrentAsTemplate}
-            className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
-          >
-            현재 입력 템플릿 저장
-          </button>
-        </div>
+        {/* 데스크탑: 2컬럼 그리드 / 모바일: 단일 컬럼 */}
+        <div className="md:grid md:grid-cols-[1.1fr_1fr] md:gap-8 md:items-start">
 
-        <div className="space-y-3">
-          {[...BASIC_TEMPLATES, ...userTemplates].map((template) => (
-            <div key={template.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-black text-slate-800 truncate">{template.title}</p>
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{template.description}</p>
-                  <span className="inline-block mt-2 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    {template.category}
-                  </span>
+          {/* ── 왼쪽 컬럼: 입력 폼 + 다중 일정 미리보기 + 템플릿 ── */}
+          <div>
+
+            {/* 일정 입력 카드 */}
+            <div className="bg-white rounded-[32px] p-7 md:p-10 shadow-2xl mb-8 border border-white">
+              <div className="flex justify-between items-center mb-6 md:mb-8">
+                <span className="text-[10px] md:text-[13px] font-black text-slate-300 uppercase tracking-widest">
+                  Plan Details
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleAIAutoFill()}
+                  disabled={loading}
+                  className="text-[12px] md:text-[14px] font-bold bg-[#F0FDF4] text-[#22C55E] px-5 md:px-7 py-2.5 md:py-3 rounded-full active:scale-95 transition-all disabled:opacity-50"
+                >
+                  ✨ {loading ? "분석 중..." : "AI 자동완성"}
+                </button>
+              </div>
+              <div className="space-y-5 md:space-y-6">
+                {!user && (
+                  <p className="text-[12px] md:text-[14px] font-bold text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 md:px-4 md:py-3">
+                    일정 저장은 로그인 후 가능합니다. 먼저 로그인해 주세요.
+                  </p>
+                )}
+                <input
+                  className="w-full p-4 md:p-5 bg-[#F8F9FD] rounded-2xl text-[19px] md:text-[24px] font-black outline-none border-none"
+                  value={rawInput}
+                  onChange={(e) => setRawInput(e.target.value)}
+                  placeholder="일정 제목 또는 자연어 입력"
+                />
+                <textarea
+                  className="w-full p-4 md:p-5 bg-[#F8F9FD] rounded-2xl text-[14px] md:text-[16px] text-slate-500 font-medium outline-none border-none resize-none whitespace-pre-line"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="상세 내용 (AI 자동완성 시 자동 입력)"
+                />
+                <div className="flex gap-3 md:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[11px] md:text-[13px] font-black text-slate-400 block mb-1">시작</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[12px] md:text-[14px] font-bold outline-none border-none"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[11px] md:text-[13px] font-black text-rose-400 block mb-1">마감</label>
+                    <input
+                      type="datetime-local"
+                      className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[12px] md:text-[14px] font-bold outline-none border-none text-rose-500"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => applyTemplateToForm(template)}
-                    className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-[#1A202C] text-white"
-                  >
-                    적용
-                  </button>
-                  {template.category === "내 템플릿" && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteUserTemplate(template.id)}
-                      className="text-[10px] font-bold px-3 py-1.5 rounded-full bg-rose-100 text-rose-600"
-                    >
-                      삭제
-                    </button>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAddTodo()}
+                  disabled={!user}
+                  className="w-full bg-[#1A202C] text-white py-5 md:py-6 rounded-3xl font-bold text-[18px] md:text-[22px] shadow-xl active:scale-95 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {user ? "일정 저장하기 🎊" : "로그인 후 저장 가능"}
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="space-y-4">
-        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-1">
-          My Plan List ({todos.length})
-        </p>
+            {/* 다중 일정 감지 미리보기 */}
+            {pendingSchedules.length > 0 && (
+              <div className="bg-white rounded-[28px] p-5 md:p-8 shadow-xl border-2 border-emerald-200 mb-8">
+                <div className="flex items-center justify-between mb-3 md:mb-5">
+                  <div>
+                    <p className="text-[12px] md:text-[15px] font-black text-emerald-600 uppercase tracking-widest">
+                      ✨ 일정 {pendingSchedules.length}개 감지됨
+                    </p>
+                    <p className="text-[11px] md:text-[13px] text-slate-400 mt-0.5">개별 × 버튼으로 제거 후 일괄 저장</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingSchedules([])}
+                    className="text-[11px] md:text-[13px] text-slate-400 font-bold"
+                  >
+                    닫기
+                  </button>
+                </div>
+                <div className="space-y-2 md:space-y-3 mb-4">
+                  {pendingSchedules.map((s, idx) => (
+                    <div key={idx} className="flex items-start gap-2 bg-[#F8F9FD] rounded-2xl p-3 md:p-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] md:text-[17px] font-black text-slate-800 truncate">{s.title}</p>
+                        {s.desc && (
+                          <p className="text-[11px] md:text-[13px] text-slate-400 mt-0.5 line-clamp-1">{s.desc}</p>
+                        )}
+                        <p className="text-[11px] md:text-[13px] font-bold text-emerald-600 mt-1">
+                          {s.start ? formatDisplay(s.start) : "시간 미정"}{" "}
+                          {s.end && s.end !== s.start ? `→ ${formatDisplay(s.end)}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePending(idx)}
+                        className="text-[18px] md:text-[22px] text-slate-300 hover:text-rose-400 shrink-0 mt-0.5"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveAllPending()}
+                  disabled={!user || savingAll}
+                  className="w-full bg-emerald-500 text-white py-4 md:py-5 rounded-2xl font-bold text-[16px] md:text-[19px] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingAll ? "저장 중..." : user ? `${pendingSchedules.length}개 일정 모두 저장 🎊` : "로그인 후 저장 가능"}
+                </button>
+              </div>
+            )}
 
-        {todos.length === 0 && (
-          <p className="text-center text-slate-300 font-bold text-sm py-10">등록된 일정이 없습니다.</p>
-        )}
+            {/* 템플릿 마켓 */}
+            <div className="bg-white rounded-[28px] p-5 md:p-8 shadow-sm border border-white mb-8">
+              <div className="flex items-center justify-between mb-3 md:mb-5">
+                <p className="text-[11px] md:text-[14px] font-black text-slate-400 uppercase tracking-widest">Template Market</p>
+                <button
+                  type="button"
+                  onClick={handleSaveCurrentAsTemplate}
+                  className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  현재 입력 템플릿 저장
+                </button>
+              </div>
+              <div className="space-y-3">
+                {[...BASIC_TEMPLATES, ...userTemplates].map((template) => (
+                  <div key={template.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3 md:p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[13px] md:text-[16px] font-black text-slate-800 truncate">{template.title}</p>
+                        <p className="text-[11px] md:text-[13px] text-slate-500 mt-1 line-clamp-2">{template.description}</p>
+                        <span className="inline-block mt-2 text-[10px] md:text-[12px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          {template.category}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => applyTemplateToForm(template)}
+                          className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#1A202C] text-white"
+                        >
+                          적용
+                        </button>
+                        {template.category === "내 템플릿" && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUserTemplate(template.id)}
+                            className="text-[10px] md:text-[12px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-rose-100 text-rose-600"
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>{/* ── 왼쪽 컬럼 끝 ── */}
+
+          {/* ── 오른쪽 컬럼: 일정 목록 ── */}
+          <div>
+            <div className="space-y-4">
+              <p className="text-[10px] md:text-[13px] font-black text-slate-300 uppercase tracking-widest px-1 md:pt-2">
+                My Plan List ({todos.length})
+              </p>
+
+              {todos.length === 0 && (
+                <p className="text-center text-slate-300 font-bold text-sm md:text-base py-10 md:py-20">등록된 일정이 없습니다.</p>
+              )}
 
         {todos.map((todo) => (
           <div key={todo.id} className="bg-white rounded-[28px] shadow-sm border border-white overflow-hidden">
             {editingId === todo.id ? (
-              <div className="p-6 space-y-3">
+              <div className="p-6 md:p-8 space-y-3 md:space-y-4">
                 <input
-                  className="w-full p-3 bg-[#F8F9FD] rounded-xl text-[16px] font-black outline-none"
+                  className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[16px] md:text-[19px] font-black outline-none"
                   value={editData.title}
                   onChange={(e) => setEditData((p) => ({ ...p, title: e.target.value }))}
                   placeholder="제목"
                 />
                 <textarea
-                  className="w-full p-3 bg-[#F8F9FD] rounded-xl text-[13px] text-slate-500 outline-none resize-none"
+                  className="w-full p-3 md:p-4 bg-[#F8F9FD] rounded-xl text-[13px] md:text-[15px] text-slate-500 outline-none resize-none"
                   rows={3}
                   value={editData.description}
                   onChange={(e) => setEditData((p) => ({ ...p, description: e.target.value }))}
@@ -521,7 +645,7 @@ const TodoPage = () => {
                       )}
                     </button>
                     <h3
-                      className={`text-[17px] font-black tracking-tight leading-tight truncate transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      className={`text-[17px] md:text-[20px] font-black tracking-tight leading-tight truncate transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
                     >
                       {todo.title}
                     </h3>
@@ -548,21 +672,21 @@ const TodoPage = () => {
                 </div>
 
                 {todo.description && (
-                  <p className="text-[13px] text-slate-400 font-medium mt-3 whitespace-pre-line leading-relaxed">
+                  <p className="text-[13px] md:text-[15px] text-slate-400 font-medium mt-3 whitespace-pre-line leading-relaxed">
                     {todo.description}
                   </p>
                 )}
 
                 <div className="flex gap-4 mt-4 pt-4 border-t border-slate-50">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-blue-500 uppercase">START</span>
-                    <span className="text-[14px] font-black text-slate-700">
+                    <span className="text-[10px] md:text-[12px] font-black text-blue-500 uppercase">START</span>
+                    <span className="text-[14px] md:text-[16px] font-black text-slate-700">
                       {formatDisplay(todo.start_time)}
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-rose-400 uppercase">END</span>
-                    <span className="text-[14px] font-black text-slate-700">
+                    <span className="text-[10px] md:text-[12px] font-black text-rose-400 uppercase">END</span>
+                    <span className="text-[14px] md:text-[16px] font-black text-slate-700">
                       {formatDisplay(todo.end_time)}
                     </span>
                   </div>
@@ -571,7 +695,11 @@ const TodoPage = () => {
             )}
           </div>
         ))}
-      </div>
+            </div>{/* space-y-4 끝 */}
+          </div>{/* 오른쪽 컬럼 끝 */}
+
+        </div>{/* md:grid 끝 */}
+      </div>{/* 최대 너비 컨테이너 끝 */}
     </div>
   );
 };

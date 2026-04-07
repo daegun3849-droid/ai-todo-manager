@@ -6,10 +6,20 @@ const buildPrompt = (rawText: string) => {
   const todayKr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
   return `오늘 날짜(참고): ${todayKr}
 사용자 입력: "${rawText.trim()}"
-위 내용에서 일정 정보를 추출해 JSON만 출력하세요. 마크다운·코드펜스·설명 금지.
-형식: {"title":"짧은 제목","desc":"상세(장소·시간·메모)","start":"YYYY-MM-DDTHH:mm","end":"YYYY-MM-DDTHH:mm"}
-- 날짜가 없으면 오늘(한국 날짜) 기준.
-- end는 start보다 이후(없으면 start + 1시간).`;
+
+위 내용에서 일정을 추출하세요. 일정이 여러 개면 배열로, 하나면 배열 1개로 반환합니다.
+마크다운·코드펜스·설명 없이 JSON 배열만 출력하세요.
+
+형식:
+[
+  {"title":"짧은 제목","desc":"상세(장소·시간·메모)","start":"YYYY-MM-DDTHH:mm","end":"YYYY-MM-DDTHH:mm"},
+  {"title":"짧은 제목2","desc":"상세2","start":"YYYY-MM-DDTHH:mm","end":"YYYY-MM-DDTHH:mm"}
+]
+
+규칙:
+- 날짜가 없으면 오늘(한국 날짜) 기준
+- end는 start보다 이후(없으면 start + 1시간)
+- 반드시 배열([]) 형태로만 출력`;
 };
 
 const generateWithGroq = async (apiKey: string, prompt: string): Promise<string> => {
@@ -45,18 +55,28 @@ const generateWithGoogle = async (prompt: string): Promise<string> => {
   return text;
 };
 
-const extractJsonObject = (text: string) => {
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
+const extractJsonArray = (text: string) => {
+  // 배열 형태 추출
+  const arrayMatch = text.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      const parsed = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* fall through */ }
   }
+  // 단일 객체면 배열로 감싸기
+  const objMatch = text.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try {
+      return [JSON.parse(objMatch[0])];
+    } catch { /* fall through */ }
+  }
+  return null;
 };
 
 /**
- * 자연어 → 일정 JSON (Groq 우선, 없으면 Google Gemini)
+ * 자연어 → 일정 JSON 배열 (Groq 우선, 없으면 Google Gemini)
+ * 여러 일정이 감지되면 배열 여러 개 반환
  */
 export const POST = async (req: NextRequest) => {
   try {
@@ -93,14 +113,14 @@ export const POST = async (req: NextRequest) => {
       aiText = await generateWithGoogle(prompt);
     } else {
       return NextResponse.json(
-        { error: 'AI 키가 없습니다. .env.local에 GROQ_API_KEY 또는 GOOGLE_GENERATIVE_AI_API_KEY를 설정해 주세요.' },
+        { error: 'AI 키가 없습니다. GROQ_API_KEY 또는 GOOGLE_GENERATIVE_AI_API_KEY를 설정해 주세요.' },
         { status: 503 },
       );
     }
 
-    const parsed = extractJsonObject(aiText);
-    if (!parsed) {
-      return NextResponse.json({ error: 'AI 응답을 JSON으로 파싱할 수 없습니다.' }, { status: 502 });
+    const parsed = extractJsonArray(aiText);
+    if (!parsed || parsed.length === 0) {
+      return NextResponse.json({ error: 'AI 응답을 파싱할 수 없습니다.' }, { status: 502 });
     }
 
     return NextResponse.json(parsed);
