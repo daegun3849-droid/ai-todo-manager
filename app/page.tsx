@@ -822,7 +822,7 @@ const TodoPage = () => {
                       )}
                     </button>
                     <h3
-                      className={`text-[17px] md:text-[20px] font-black tracking-tight leading-tight truncate transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug line-clamp-2 transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
                     >
                       {todo.title}
                     </h3>
