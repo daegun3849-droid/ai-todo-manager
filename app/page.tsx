@@ -139,6 +139,8 @@ const TodoPage = () => {
   const [pendingSchedules, setPendingSchedules] = useState<ParsedSchedule[]>([]);
   const [savingAll, setSavingAll] = useState(false);
   const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
   const todayQuote = useMemo(() => getTodayQuote(), []);
   const [editData, setEditData] = useState<EditData>({
     title: "",
@@ -386,15 +388,43 @@ const TodoPage = () => {
     localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(nextTemplates));
   };
 
-  // 달력 날짜 클릭 → 폼 날짜 채우기 + 필터
+  // 달력 날짜 클릭 → 필터 + 빠른 추가 준비
   const handleCalendarSelect = (day: Date | undefined) => {
     setCalendarDate(day);
+    setQuickTitle("");
     if (day) {
       const yyyy = day.getFullYear();
       const mm = String(day.getMonth() + 1).padStart(2, "0");
       const dd = String(day.getDate()).padStart(2, "0");
       setStartTime(`${yyyy}-${mm}-${dd}T09:00`);
       setEndTime(`${yyyy}-${mm}-${dd}T10:00`);
+    }
+  };
+
+  // 달력 아래 빠른 일정 추가
+  const handleQuickAdd = async () => {
+    if (!quickTitle.trim() || !calendarDate || !user?.id) return;
+    setQuickSaving(true);
+    try {
+      const yyyy = calendarDate.getFullYear();
+      const mm = String(calendarDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(calendarDate.getDate()).padStart(2, "0");
+      const { error } = await supabase.from("todos").insert([{
+        title: quickTitle.trim(),
+        description: "",
+        start_time: `${yyyy}-${mm}-${dd}T09:00:00`,
+        end_time: `${yyyy}-${mm}-${dd}T10:00:00`,
+        user_id: user.id,
+        is_completed: false,
+      }]);
+      if (error) { alert(`저장 실패: ${error.message}`); return; }
+      confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
+      setQuickTitle("");
+      await fetchTodos(user.id);
+    } catch (e) {
+      console.error("빠른 추가 실패:", e);
+    } finally {
+      setQuickSaving(false);
     }
   };
 
@@ -461,19 +491,6 @@ const TodoPage = () => {
             </button>
           )}
         </header>
-
-        {/* 오늘의 명언 */}
-        <div className="bg-gradient-to-r from-[#1A202C] to-[#2D3748] rounded-[24px] px-6 py-5 mb-6 md:mb-8">
-          <p className="text-[10px] md:text-[12px] font-black text-emerald-400 uppercase tracking-widest mb-2">
-            ✦ 오늘의 명언
-          </p>
-          <p className="text-[14px] md:text-[18px] font-bold text-white leading-snug">
-            &ldquo;{todayQuote.text}&rdquo;
-          </p>
-          <p className="text-[11px] md:text-[13px] text-slate-400 font-medium mt-2 text-right">
-            — {todayQuote.author}
-          </p>
-        </div>
 
         {/* 데스크탑: 2컬럼 그리드 / 모바일: 단일 컬럼 */}
         <div className="md:grid md:grid-cols-[1.1fr_1fr] md:gap-8 md:items-start">
@@ -646,6 +663,19 @@ const TodoPage = () => {
           {/* ── 오른쪽 컬럼: 달력 + 일정 목록 ── */}
           <div>
 
+            {/* 오늘의 명언 (달력 바로 위) */}
+            <div className="bg-gradient-to-r from-[#1A202C] to-[#2D3748] rounded-[24px] px-5 py-4 md:px-7 md:py-5 mb-4">
+              <p className="text-[10px] md:text-[12px] font-black text-emerald-400 uppercase tracking-widest mb-1.5">
+                ✦ 오늘의 명언
+              </p>
+              <p className="text-[13px] md:text-[16px] font-bold text-white leading-snug">
+                &ldquo;{todayQuote.text}&rdquo;
+              </p>
+              <p className="text-[11px] md:text-[13px] text-slate-400 font-medium mt-1.5 text-right">
+                — {todayQuote.author}
+              </p>
+            </div>
+
             {/* 월간 달력 카드 */}
             <div className="bg-white rounded-[28px] p-5 md:p-7 shadow-sm border border-white mb-6">
               <div className="flex items-center justify-between mb-3">
@@ -672,11 +702,38 @@ const TodoPage = () => {
                 }}
                 className="w-full [--cell-size:--spacing(9)] md:[--cell-size:--spacing(10)]"
               />
+
+              {/* 달력 날짜 클릭 후 빠른 일정 추가 */}
               {calendarDate && (
-                <p className="text-[12px] md:text-[14px] font-bold text-slate-500 mt-3 text-center">
-                  {calendarDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })} 일정{" "}
-                  <span className="text-emerald-600">{filteredTodos.length}개</span>
-                </p>
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-[12px] md:text-[14px] font-black text-slate-600 mb-2">
+                    📌 {calendarDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+                    <span className="ml-2 text-emerald-600">({filteredTodos.length}개)</span>
+                  </p>
+                  {user ? (
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
+                        value={quickTitle}
+                        onChange={(e) => setQuickTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handleQuickAdd(); }}
+                        placeholder="일정 제목 입력 후 Enter"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleQuickAdd()}
+                        disabled={!quickTitle.trim() || quickSaving}
+                        className="bg-[#1A202C] text-white px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-40 active:scale-95 transition-all shrink-0"
+                      >
+                        {quickSaving ? "..." : "추가"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-amber-600 font-bold bg-amber-50 rounded-xl px-3 py-2">
+                      일정 추가는 로그인 후 가능합니다.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
