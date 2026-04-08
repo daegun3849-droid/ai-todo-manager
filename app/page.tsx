@@ -31,6 +31,7 @@ interface PlanTemplate {
   title: string;
   description: string;
   category: "면접" | "시험" | "업무 루틴" | "내 템플릿";
+  isPremium?: boolean;
   payload: {
     rawInput: string;
     description: string;
@@ -162,6 +163,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-morning",
+    isPremium: true,
     title: "🌅 기분 좋은 아침 루틴",
     description: "하루를 에너지 넘치게 시작하는 모닝 루틴. 10분이면 충분!",
     category: "업무 루틴",
@@ -174,6 +176,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-focus",
+    isPremium: true,
     title: "🔥 집중력 폭발 딥워크",
     description: "방해 없이 90분 몰입. 끝나면 진짜 뿌듯함이 찾아옵니다.",
     category: "업무 루틴",
@@ -186,6 +189,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-interview",
+    isPremium: true,
     title: "💼 면접 당일 마음 정리",
     description: "떨리는 면접 전날·당일, 이것만 하면 자신감이 생깁니다.",
     category: "면접",
@@ -198,6 +202,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-exam",
+    isPremium: true,
     title: "📚 시험 전날 벼락치기",
     description: "시간이 없을 때 효율 극대화! 핵심만 빠르게 훑는 전략.",
     category: "시험",
@@ -210,6 +215,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-health",
+    isPremium: true,
     title: "💪 퇴근 후 활력 충전",
     description: "바쁜 하루 끝, 30분으로 몸과 마음을 리셋하세요.",
     category: "업무 루틴",
@@ -222,6 +228,7 @@ const BASIC_TEMPLATES: PlanTemplate[] = [
   },
   {
     id: "base-idea",
+    isPremium: true,
     title: "💡 아이디어 폭발 브레인스토밍",
     description: "생각이 막힐 때, 판단 없이 쏟아내는 30분.",
     category: "업무 루틴",
@@ -729,28 +736,71 @@ const TodoPage = () => {
                   onClick={handleSaveCurrentAsTemplate}
                   className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
                 >
-                  현재 입력 템플릿 저장
+                  내 템플릿 저장
                 </button>
               </div>
+
+              {/* 프리미엄 업그레이드 배너 */}
+              <div className="bg-gradient-to-r from-[#1A202C] to-[#2D3748] rounded-2xl p-4 md:p-5 mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] md:text-[13px] font-black text-yellow-400 uppercase tracking-widest mb-1">
+                    ✦ Premium
+                  </p>
+                  <p className="text-[13px] md:text-[15px] font-bold text-white leading-snug">
+                    🔒 프리미엄 템플릿 6개 포함
+                  </p>
+                  <p className="text-[11px] md:text-[12px] text-slate-400 mt-0.5">
+                    AI 무제한 · 알림 · 주간 리포트
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => alert("프리미엄 기능 준비 중입니다! 곧 오픈됩니다 🚀")}
+                  className="shrink-0 bg-yellow-400 text-[#1A202C] text-[12px] md:text-[14px] font-black px-4 py-2.5 rounded-xl active:scale-95 transition-all"
+                >
+                  월 4,900원
+                </button>
+              </div>
+
               <div className="space-y-3">
                 {[...BASIC_TEMPLATES, ...userTemplates].map((template) => (
-                  <div key={template.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3 md:p-4">
+                  <div
+                    key={template.id}
+                    className={`rounded-2xl border p-3 md:p-4 ${template.isPremium ? "border-yellow-100 bg-yellow-50/50" : "border-slate-100 bg-slate-50"}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[13px] md:text-[16px] font-black text-slate-800 truncate">{template.title}</p>
-                        <p className="text-[11px] md:text-[13px] text-slate-500 mt-1 line-clamp-2">{template.description}</p>
-                        <span className="inline-block mt-2 text-[10px] md:text-[12px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                          {template.category}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {template.isPremium && <span className="text-[11px]">🔒</span>}
+                          <p className={`text-[13px] md:text-[16px] font-black truncate ${template.isPremium ? "text-slate-400" : "text-slate-800"}`}>
+                            {template.title}
+                          </p>
+                        </div>
+                        <p className="text-[11px] md:text-[13px] text-slate-400 mt-1 line-clamp-2">{template.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`inline-block text-[10px] md:text-[12px] font-bold px-2 py-0.5 rounded-full ${template.isPremium ? "text-yellow-700 bg-yellow-100" : "text-emerald-700 bg-emerald-100"}`}>
+                            {template.isPremium ? "👑 프리미엄" : template.category}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => applyTemplateToForm(template)}
-                          className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#1A202C] text-white"
-                        >
-                          적용
-                        </button>
+                        {template.isPremium ? (
+                          <button
+                            type="button"
+                            onClick={() => alert("프리미엄 기능 준비 중입니다! 곧 오픈됩니다 🚀")}
+                            className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-yellow-100 text-yellow-700"
+                          >
+                            🔒 잠금
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => applyTemplateToForm(template)}
+                            className="text-[11px] md:text-[13px] font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#1A202C] text-white"
+                          >
+                            적용
+                          </button>
+                        )}
                         {template.category === "내 템플릿" && (
                           <button
                             type="button"
