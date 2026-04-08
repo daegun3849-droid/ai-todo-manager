@@ -120,15 +120,17 @@ const DateTimePicker = ({
           </PopoverContent>
         </Popover>
 
-        {/* 시간 입력 */}
+        {/* 시간 입력 (24시간제 강제) */}
         <input
           type="time"
           value={timePart}
           onChange={handleTimeChange}
+          step="300"
           className={cn(
-            "w-full bg-transparent text-[13px] md:text-[14px] font-black outline-none border-none",
+            "w-full bg-transparent text-[13px] md:text-[14px] font-black outline-none border-none [&::-webkit-datetime-edit-ampm-field]:hidden [&::-webkit-datetime-edit-hour-field]:text-inherit",
             timeColor
           )}
+          style={{ fontVariantNumeric: "tabular-nums" }}
         />
       </div>
     </div>
