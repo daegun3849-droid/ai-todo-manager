@@ -4,10 +4,11 @@
  * AI PLANNER 메인 페이지
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import confetti from "canvas-confetti";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
+import { Calendar } from "@/components/ui/calendar";
 
 interface Todo {
   id: string;
@@ -46,6 +47,45 @@ interface ParsedSchedule {
 }
 
 const LOCAL_TEMPLATE_KEY = "ai-planner-user-templates-v1";
+
+const QUOTES = [
+  { text: "오늘 할 수 있는 일을 내일로 미루지 마라.", author: "벤자민 프랭클린" },
+  { text: "작은 진전도 진전이다.", author: "익명" },
+  { text: "시작이 반이다.", author: "아리스토텔레스" },
+  { text: "꿈을 향해 자신있게 나아가라.", author: "헨리 데이비드 소로" },
+  { text: "성공은 준비와 기회가 만나는 곳에 있다.", author: "세네카" },
+  { text: "포기란 없다. 다만 중간 휴식이 있을 뿐이다.", author: "익명" },
+  { text: "어제는 역사, 내일은 미스터리, 오늘은 선물이다.", author: "엘리너 루스벨트" },
+  { text: "한 걸음씩 나아가다 보면 산 정상에 오를 수 있다.", author: "중국 속담" },
+  { text: "지금 이 순간에 집중하라.", author: "익명" },
+  { text: "할 수 있다고 생각하면 할 수 있다.", author: "헨리 포드" },
+  { text: "실패는 성공의 어머니다.", author: "익명" },
+  { text: "오늘의 노력이 내일의 나를 만든다.", author: "익명" },
+  { text: "목표를 향해 한 발자국씩.", author: "익명" },
+  { text: "끈기는 재능보다 강하다.", author: "익명" },
+  { text: "변화는 두려움이 아닌 기회다.", author: "익명" },
+  { text: "최선을 다한 오늘이 최고의 내일을 만든다.", author: "익명" },
+  { text: "성공한 사람들은 결코 포기하지 않는다.", author: "익명" },
+  { text: "스스로를 믿어라. 네 안에 빛이 있다.", author: "익명" },
+  { text: "작은 습관이 큰 변화를 만든다.", author: "제임스 클리어" },
+  { text: "지금 당장 완벽하지 않아도 된다. 그냥 시작하라.", author: "익명" },
+  { text: "도전하지 않으면 변화도 없다.", author: "익명" },
+  { text: "하루를 잘 마무리하면 내일이 기대된다.", author: "익명" },
+  { text: "자신을 극복하는 자가 진정한 강자다.", author: "노자" },
+  { text: "꾸준함이 재능을 이긴다.", author: "익명" },
+  { text: "불가능은 없다. 다만 시간이 필요할 뿐이다.", author: "익명" },
+  { text: "배움에는 끝이 없다.", author: "공자" },
+  { text: "행동이 두려움을 없애준다.", author: "익명" },
+  { text: "오늘의 씨앗이 내일의 꽃이 된다.", author: "익명" },
+  { text: "열정을 잃지 않고 실패를 거듭할 수 있는 것, 그것이 성공이다.", author: "윈스턴 처칠" },
+  { text: "하루하루 최선을 다하면 언젠가 반드시 빛난다.", author: "익명" },
+];
+
+const getTodayQuote = () => {
+  const now = new Date();
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+  return QUOTES[dayOfYear % QUOTES.length];
+};
 
 const BASIC_TEMPLATES: PlanTemplate[] = [
   {
@@ -98,6 +138,8 @@ const TodoPage = () => {
   const [userTemplates, setUserTemplates] = useState<PlanTemplate[]>([]);
   const [pendingSchedules, setPendingSchedules] = useState<ParsedSchedule[]>([]);
   const [savingAll, setSavingAll] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
+  const todayQuote = useMemo(() => getTodayQuote(), []);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -344,6 +386,39 @@ const TodoPage = () => {
     localStorage.setItem(LOCAL_TEMPLATE_KEY, JSON.stringify(nextTemplates));
   };
 
+  // 달력 날짜 클릭 → 폼 날짜 채우기 + 필터
+  const handleCalendarSelect = (day: Date | undefined) => {
+    setCalendarDate(day);
+    if (day) {
+      const yyyy = day.getFullYear();
+      const mm = String(day.getMonth() + 1).padStart(2, "0");
+      const dd = String(day.getDate()).padStart(2, "0");
+      setStartTime(`${yyyy}-${mm}-${dd}T09:00`);
+      setEndTime(`${yyyy}-${mm}-${dd}T10:00`);
+    }
+  };
+
+  // 일정 있는 날짜 목록 (달력 닷 표시용)
+  const todoDates = useMemo(() => {
+    return todos.map((t) => {
+      const d = new Date(t.start_time);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    });
+  }, [todos]);
+
+  // 선택한 날짜의 일정만 필터
+  const filteredTodos = useMemo(() => {
+    if (!calendarDate) return todos;
+    return todos.filter((t) => {
+      const d = new Date(t.start_time);
+      return (
+        d.getFullYear() === calendarDate.getFullYear() &&
+        d.getMonth() === calendarDate.getMonth() &&
+        d.getDate() === calendarDate.getDate()
+      );
+    });
+  }, [todos, calendarDate]);
+
 
   return (
     <div className="min-h-screen bg-[#F8F9FD] font-sans text-slate-900">
@@ -386,6 +461,19 @@ const TodoPage = () => {
             </button>
           )}
         </header>
+
+        {/* 오늘의 명언 */}
+        <div className="bg-gradient-to-r from-[#1A202C] to-[#2D3748] rounded-[24px] px-6 py-5 mb-6 md:mb-8">
+          <p className="text-[10px] md:text-[12px] font-black text-emerald-400 uppercase tracking-widest mb-2">
+            ✦ 오늘의 명언
+          </p>
+          <p className="text-[14px] md:text-[18px] font-bold text-white leading-snug">
+            &ldquo;{todayQuote.text}&rdquo;
+          </p>
+          <p className="text-[11px] md:text-[13px] text-slate-400 font-medium mt-2 text-right">
+            — {todayQuote.author}
+          </p>
+        </div>
 
         {/* 데스크탑: 2컬럼 그리드 / 모바일: 단일 컬럼 */}
         <div className="md:grid md:grid-cols-[1.1fr_1fr] md:gap-8 md:items-start">
@@ -555,18 +643,57 @@ const TodoPage = () => {
 
           </div>{/* ── 왼쪽 컬럼 끝 ── */}
 
-          {/* ── 오른쪽 컬럼: 일정 목록 ── */}
+          {/* ── 오른쪽 컬럼: 달력 + 일정 목록 ── */}
           <div>
+
+            {/* 월간 달력 카드 */}
+            <div className="bg-white rounded-[28px] p-5 md:p-7 shadow-sm border border-white mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] md:text-[14px] font-black text-slate-400 uppercase tracking-widest">
+                  📅 Monthly Plan
+                </p>
+                {calendarDate && (
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(undefined)}
+                    className="text-[11px] md:text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full"
+                  >
+                    전체 보기
+                  </button>
+                )}
+              </div>
+              <Calendar
+                mode="single"
+                selected={calendarDate}
+                onSelect={handleCalendarSelect}
+                modifiers={{ hasTodo: todoDates }}
+                modifiersClassNames={{
+                  hasTodo: "after:content-[''] after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-emerald-500 after:rounded-full relative",
+                }}
+                className="w-full [--cell-size:--spacing(9)] md:[--cell-size:--spacing(10)]"
+              />
+              {calendarDate && (
+                <p className="text-[12px] md:text-[14px] font-bold text-slate-500 mt-3 text-center">
+                  {calendarDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })} 일정{" "}
+                  <span className="text-emerald-600">{filteredTodos.length}개</span>
+                </p>
+              )}
+            </div>
+
             <div className="space-y-4">
-              <p className="text-[10px] md:text-[13px] font-black text-slate-300 uppercase tracking-widest px-1 md:pt-2">
-                My Plan List ({todos.length})
+              <p className="text-[10px] md:text-[13px] font-black text-slate-300 uppercase tracking-widest px-1">
+                {calendarDate
+                  ? `${calendarDate.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })} 일정 (${filteredTodos.length})`
+                  : `My Plan List (${todos.length})`}
               </p>
 
-              {todos.length === 0 && (
-                <p className="text-center text-slate-300 font-bold text-sm md:text-base py-10 md:py-20">등록된 일정이 없습니다.</p>
+              {filteredTodos.length === 0 && (
+                <p className="text-center text-slate-300 font-bold text-sm md:text-base py-10 md:py-20">
+                  {calendarDate ? "이 날 등록된 일정이 없습니다." : "등록된 일정이 없습니다."}
+                </p>
               )}
 
-        {todos.map((todo) => (
+        {filteredTodos.map((todo) => (
           <div key={todo.id} className="bg-white rounded-[28px] shadow-sm border border-white overflow-hidden">
             {editingId === todo.id ? (
               <div className="p-6 md:p-8 space-y-3 md:space-y-4">
