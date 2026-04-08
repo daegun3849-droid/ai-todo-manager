@@ -89,37 +89,73 @@ const getTodayQuote = () => {
 
 const BASIC_TEMPLATES: PlanTemplate[] = [
   {
+    id: "base-morning",
+    title: "🌅 기분 좋은 아침 루틴",
+    description: "하루를 에너지 넘치게 시작하는 모닝 루틴. 10분이면 충분!",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "아침 루틴",
+      description: "1) 기지개 + 물 한 잔 (5분)\n2) 오늘 할 일 3가지 적기 (5분)\n3) 어제 잘한 점 1가지 떠올리기",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "base-focus",
+    title: "🔥 집중력 폭발 딥워크",
+    description: "방해 없이 90분 몰입. 끝나면 진짜 뿌듯함이 찾아옵니다.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "딥워크 집중 세션",
+      description: "1) 핸드폰 뒤집기 + 알림 끄기\n2) 핵심 작업 1개만 집중 90분\n3) 완료 후 짧은 보상 (커피, 산책)",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
     id: "base-interview",
-    title: "면접 준비 1일 루틴",
-    description: "회사 조사, 예상 질문, 자기소개 연습 순서로 정리합니다.",
+    title: "💼 면접 당일 마음 정리",
+    description: "떨리는 면접 전날·당일, 이것만 하면 자신감이 생깁니다.",
     category: "면접",
     payload: {
-      rawInput: "면접 준비 루틴",
-      description: "1) 회사/직무 리서치\n2) 예상 질문 10개 답변 작성\n3) 1분 자기소개 리허설",
+      rawInput: "면접 준비",
+      description: "1) 지원 동기 3문장으로 정리\n2) 예상 질문 5개 소리 내어 연습\n3) 합격한 내 모습 1분 상상하기",
       startTime: "",
       endTime: "",
     },
   },
   {
     id: "base-exam",
-    title: "시험 대비 집중 블록",
-    description: "과목별 50분 집중 + 10분 휴식 사이클입니다.",
+    title: "📚 시험 전날 벼락치기",
+    description: "시간이 없을 때 효율 극대화! 핵심만 빠르게 훑는 전략.",
     category: "시험",
     payload: {
-      rawInput: "시험 대비 집중 학습",
-      description: "과목 A 50분 - 휴식 10분 - 과목 B 50분 - 오답 정리 30분",
+      rawInput: "시험 벼락치기",
+      description: "1) 자주 틀리는 유형 집중 복습 (40분)\n2) 핵심 공식·단어 암기 카드 정리\n3) 모의 문제 1회 풀기 + 오답 체크",
       startTime: "",
       endTime: "",
     },
   },
   {
-    id: "base-work",
-    title: "업무 시작 루틴",
-    description: "우선순위 점검, 메일 확인, 핵심 업무 1개 완료를 목표로 합니다.",
+    id: "base-health",
+    title: "💪 퇴근 후 활력 충전",
+    description: "바쁜 하루 끝, 30분으로 몸과 마음을 리셋하세요.",
     category: "업무 루틴",
     payload: {
-      rawInput: "업무 시작 루틴",
-      description: "1) 오늘 우선순위 3개 선정\n2) 메일/메신저 20분 정리\n3) 핵심 업무 90분 딥워크",
+      rawInput: "퇴근 후 운동 루틴",
+      description: "1) 스트레칭 10분 (목·어깨·허리)\n2) 유산소 or 근력 운동 20분\n3) 따뜻한 물 샤워 + 내일 옷 준비",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "base-idea",
+    title: "💡 아이디어 폭발 브레인스토밍",
+    description: "생각이 막힐 때, 판단 없이 쏟아내는 30분.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "브레인스토밍 세션",
+      description: "1) 주제 하나 정하고 타이머 10분 → 떠오르는 것 전부 적기\n2) 마음에 드는 아이디어 3개 골라 구체화\n3) 실행 가능한 첫 번째 액션 1개 결정",
       startTime: "",
       endTime: "",
     },
@@ -191,13 +227,14 @@ const TodoPage = () => {
     }
   };
 
-  const formatDisplay = (isoStr: string) =>
-    new Date(isoStr).toLocaleString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const formatDisplay = (isoStr: string) => {
+    const d = new Date(isoStr);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const hour = d.getHours();
+    const minute = String(d.getMinutes()).padStart(2, "0");
+    return `${month}/${day} ${hour}시${minute !== "00" ? ` ${minute}분` : ""}`;
+  };
 
   const handleAIAutoFill = async () => {
     if (!rawInput.trim()) {
@@ -686,9 +723,9 @@ const TodoPage = () => {
                   <button
                     type="button"
                     onClick={() => setCalendarDate(undefined)}
-                    className="text-[11px] md:text-[13px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full"
+                    className="text-[11px] md:text-[13px] font-bold text-white bg-emerald-500 px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition-all"
                   >
-                    전체 보기
+                    ← 전체 보기
                   </button>
                 )}
               </div>
@@ -822,7 +859,8 @@ const TodoPage = () => {
                       )}
                     </button>
                     <h3
-                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug line-clamp-2 transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug break-words overflow-hidden transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                     >
                       {todo.title}
                     </h3>
