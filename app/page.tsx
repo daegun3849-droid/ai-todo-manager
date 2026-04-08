@@ -89,6 +89,78 @@ const getTodayQuote = () => {
 
 const BASIC_TEMPLATES: PlanTemplate[] = [
   {
+    id: "new-weekly-goal",
+    title: "🎯 이번 주 목표 세우기",
+    description: "월요일 아침 10분, 한 주를 내 것으로 만드는 목표 설정법.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "주간 목표 설정",
+      description: "1) 이번 주 딱 3가지 목표만 정하기\n2) 각 목표마다 '왜 중요한가' 한 줄 적기\n3) 금요일 달성 여부 확인 일정 미리 잡기",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "new-sleep",
+    title: "🌙 꿀잠 보장 수면 루틴",
+    description: "자도 자도 피곤한 당신을 위한 숙면 준비 루틴.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "수면 준비 루틴",
+      description: "1) 잠들기 1시간 전 핸드폰 멀리 두기\n2) 오늘 잘한 일 3가지 노트에 적기\n3) 내일 첫 번째 할 일 1개만 메모 후 마음 비우기",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "new-money",
+    title: "💰 돈이 모이는 소비 점검",
+    description: "월말 5분, 이것만 해도 새는 돈이 보입니다.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "월간 소비 점검",
+      description: "1) 이번 달 불필요한 구독 서비스 확인\n2) 충동구매 TOP 3 적고 반성하기\n3) 다음 달 절약 목표 금액 설정",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "new-sns",
+    title: "📱 SNS 콘텐츠 기획 30분",
+    description: "인스타·유튜브 콘텐츠 아이디어 고갈? 이 루틴으로 해결!",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "콘텐츠 기획 세션",
+      description: "1) 요즘 뜨는 트렌드 키워드 5개 조사\n2) 내 채널과 연결되는 아이디어 3개 스케치\n3) 촬영·업로드 일정 달력에 바로 등록",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "new-healing",
+    title: "🧘 스트레스 제로 힐링 타임",
+    description: "번아웃 오기 전에 먼저 충전. 나를 위한 30분.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "힐링 타임",
+      description: "1) 좋아하는 음악 틀고 눈 감기 10분\n2) 지금 가장 하고 싶은 것 1가지 적기\n3) 산책 or 따뜻한 음료 한 잔 즐기기",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
+    id: "new-detox",
+    title: "🌿 디지털 디톡스 데이",
+    description: "SNS·뉴스 없는 하루, 생각보다 훨씬 개운합니다.",
+    category: "업무 루틴",
+    payload: {
+      rawInput: "디지털 디톡스",
+      description: "1) SNS 앱 하루 동안 삭제 or 알림 전체 끄기\n2) 종이책 or 산책으로 오프라인 시간 채우기\n3) 저녁에 오늘 느낀 점 짧게 일기 쓰기",
+      startTime: "",
+      endTime: "",
+    },
+  },
+  {
     id: "base-morning",
     title: "🌅 기분 좋은 아침 루틴",
     description: "하루를 에너지 넘치게 시작하는 모닝 루틴. 10분이면 충분!",
@@ -859,8 +931,14 @@ const TodoPage = () => {
                       )}
                     </button>
                     <h3
-                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug break-words overflow-hidden transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
-                      style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug w-full transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                        wordBreak: "break-all",
+                      }}
                     >
                       {todo.title}
                     </h3>
