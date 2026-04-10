@@ -120,17 +120,27 @@ const DateTimePicker = ({
           </PopoverContent>
         </Popover>
 
-        {/* 시간 입력 (24시간제 강제) */}
+        {/* 시간 입력 - 24시간제 텍스트 직접 입력 (HH:MM) */}
         <input
-          type="time"
+          type="text"
           value={timePart}
-          onChange={handleTimeChange}
-          step="300"
+          onChange={(e) => {
+            const val = e.target.value.replace(/[^0-9:]/g, "");
+            handleTimeChange({ target: { value: val } } as React.ChangeEvent<HTMLInputElement>);
+          }}
+          onBlur={(e) => {
+            const parts = e.target.value.split(":");
+            const h = Math.min(23, Math.max(0, parseInt(parts[0] ?? "0") || 0));
+            const m = Math.min(59, Math.max(0, parseInt(parts[1] ?? "0") || 0));
+            const formatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            handleTimeChange({ target: { value: formatted } } as React.ChangeEvent<HTMLInputElement>);
+          }}
+          placeholder="09:00"
+          maxLength={5}
           className={cn(
-            "w-full bg-transparent text-[13px] md:text-[14px] font-black outline-none border-none [&::-webkit-datetime-edit-ampm-field]:hidden [&::-webkit-datetime-edit-hour-field]:text-inherit",
+            "w-full bg-transparent text-[13px] md:text-[14px] font-black outline-none border-none placeholder:text-slate-300",
             timeColor
           )}
-          style={{ fontVariantNumeric: "tabular-nums" }}
         />
       </div>
     </div>
