@@ -298,9 +298,14 @@ const TodoPage = () => {
   const formatForInput = (dateStr: string) => {
     if (!dateStr) return "";
     try {
-      const normalized = dateStr.trim().replace(" ", "T");
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(normalized)) return normalized.slice(0, 16);
-      return "";
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "";
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
     } catch {
       return "";
     }
