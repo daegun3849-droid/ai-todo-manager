@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+
+interface PushSubscriptionData {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
 
 /**
  * 푸시 구독 정보를 Supabase에 저장하는 API
  */
 export const POST = async (req: NextRequest) => {
   try {
-    const { subscription } = await req.json() as { subscription: PushSubscription };
+    const { subscription } = await req.json() as { subscription: PushSubscriptionData };
     if (!subscription) {
       return NextResponse.json({ error: "구독 정보가 없습니다." }, { status: 400 });
     }

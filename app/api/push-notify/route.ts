@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
-import { createClient } from "@/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL!,
@@ -24,22 +24,18 @@ export const GET = async (req: NextRequest) => {
     const now = new Date();
     const in30min = new Date(now.getTime() + 30 * 60 * 1000);
 
-    // 30분 내 시작하는 미완료 일정 조회
     const { data: upcomingTodos } = await supabase
       .from("todos")
-      .select("*, push_subscriptions!inner(subscription)")
+      .select("id, title, start_time, user_id")
       .eq("is_completed", false)
-      .gte("start_at", now.toISOString())
-      .lte("start_at", in30min.toISOString());
+      .gte("start_time", now.toISOString())
+      .lte("start_time", in30min.toISOString());
 
-    // 종료 시간이 지났는데 미완료인 일정 조회
     const { data: overdueTodos } = await supabase
       .from("todos")
-      .select("*, push_subscriptions!inner(subscription)")
+      .select("id, title, end_time, user_id")
       .eq("is_completed", false)
-      .lt("end_at", now.toISOString());
-
-    const notifications: Promise<void>[] = [];
+      .lt("end_time", now.toISOString());
 
     const sendPush = async (
       subscriptionStr: string,
@@ -58,10 +54,18 @@ export const GET = async (req: NextRequest) => {
       }
     };
 
+    const notifications: Promise<void>[] = [];
+
     for (const todo of upcomingTodos ?? []) {
-      const sub = (todo as Record<string, unknown> & { push_subscriptions?: { subscription: string } }).push_subscriptions?.subscription;
-      if (!sub) continue;
-      const startTime = new Date(todo.start_at as string).toLocaleString("ko-KR", {
+      const { data: subData } = await supabase
+        .from("push_subscriptions")
+        .select("subscription")
+        .eq("user_id", todo.user_id as string)
+        .single();
+
+      if (!subData?.subscription) continue;
+
+      const startTime = new Date(todo.start_time as string).toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul",
         hour: "2-digit",
         minute: "2-digit",
@@ -69,7 +73,7 @@ export const GET = async (req: NextRequest) => {
       });
       notifications.push(
         sendPush(
-          sub,
+          subData.subscription as string,
           `⏰ 30분 후 일정: ${todo.title as string}`,
           `${startTime}에 시작합니다. 준비하세요!`,
           `upcoming-${todo.id as string}`
@@ -78,11 +82,17 @@ export const GET = async (req: NextRequest) => {
     }
 
     for (const todo of overdueTodos ?? []) {
-      const sub = (todo as Record<string, unknown> & { push_subscriptions?: { subscription: string } }).push_subscriptions?.subscription;
-      if (!sub) continue;
+      const { data: subData } = await supabase
+        .from("push_subscriptions")
+        .select("subscription")
+        .eq("user_id", todo.user_id as string)
+        .single();
+
+      if (!subData?.subscription) continue;
+
       notifications.push(
         sendPush(
-          sub,
+          subData.subscription as string,
           `🔔 미완료 일정: ${todo.title as string}`,
           "일정 시간이 지났습니다. 완료 처리하거나 확인해 주세요.",
           `overdue-${todo.id as string}`
@@ -92,10 +102,7 @@ export const GET = async (req: NextRequest) => {
 
     await Promise.all(notifications);
 
-    return NextResponse.json({
-      success: true,
-      sent: notifications.length,
-    });
+    return NextResponse.json({ success: true, sent: notifications.length });
   } catch (error) {
     console.error("알림 전송 중 오류:", error);
     return NextResponse.json({ error: "알림 전송 실패" }, { status: 500 });
