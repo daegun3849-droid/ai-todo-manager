@@ -257,6 +257,7 @@ const TodoPage = () => {
   const [quickTitle, setQuickTitle] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
   const todayQuote = useMemo(() => getTodayQuote(), []);
+  const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -271,6 +272,10 @@ const TodoPage = () => {
         void fetchTodos(u.id);
       }
     });
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") setNotifStatus("granted");
+      else if (Notification.permission === "denied") setNotifStatus("denied");
+    }
   }, []);
 
   useEffect(() => {
@@ -293,6 +298,46 @@ const TodoPage = () => {
       .eq("user_id", userId)
       .order("start_time", { ascending: true });
     if (data) setTodos(data as Todo[]);
+  };
+
+  const handleEnableNotifications = async () => {
+    if (!user) {
+      alert("알림을 받으려면 먼저 로그인해 주세요.");
+      return;
+    }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("이 브라우저는 푸시 알림을 지원하지 않습니다.");
+      return;
+    }
+    setNotifStatus("loading");
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setNotifStatus("denied");
+        alert("알림이 차단되었습니다. 브라우저 설정에서 허용해 주세요.");
+        return;
+      }
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+      });
+      const res = await fetch("/api/push-subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub }),
+      });
+      if (!res.ok) throw new Error("서버 저장 실패");
+      setNotifStatus("granted");
+      alert("✅ 알림이 설정되었습니다! 일정 시작 30분 전과 시간이 지난 일정을 알려드립니다.");
+    } catch (err) {
+      console.error("알림 설정 실패:", err);
+      setNotifStatus("idle");
+      alert("알림 설정 중 오류가 발생했습니다.");
+    }
   };
 
   const formatForInput = (dateStr: string) => {
@@ -588,30 +633,69 @@ const TodoPage = () => {
               </p>
             )}
           </div>
-          {user ? (
-            <button
-              type="button"
-              onClick={() =>
-                supabase.auth.signOut().then(() => {
+          <div className="flex items-center gap-3">
+            {user && (
+              <button
+                type="button"
+                onClick={() => void handleEnableNotifications()}
+                disabled={notifStatus === "loading" || notifStatus === "granted"}
+                title={notifStatus === "granted" ? "알림 설정됨" : "일정 알림 받기"}
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-[18px] transition-all active:scale-90 shadow-sm ${
+                  notifStatus === "granted"
+                    ? "bg-emerald-50 text-emerald-500"
+                    : notifStatus === "denied"
+                    ? "bg-red-50 text-red-400"
+                    : notifStatus === "loading"
+                    ? "bg-slate-100 text-slate-400 animate-pulse"
+                    : "bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-500"
+                }`}
+              >
+                {notifStatus === "granted" ? "🔔" : notifStatus === "denied" ? "🔕" : "🔔"}
+              </button>
+            )}
+            {user ? (
+              <button
+                type="button"
+                onClick={() =>
+                  supabase.auth.signOut().then(() => {
+                    window.location.href = "/login";
+                  })
+                }
+                className="text-[11px] md:text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                로그아웃
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
                   window.location.href = "/login";
-                })
-              }
-              className="text-[11px] md:text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              로그아웃
-            </button>
-          ) : (
+                }}
+                className="text-[11px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                로그인
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* 앱 소개 배너 (비로그인 상태에서만 표시) */}
+        {!user && (
+          <div className="mb-6 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-3xl p-6 border border-emerald-100">
+            <p className="text-[13px] md:text-[15px] font-black text-emerald-700 mb-1">✨ AI가 내 일정을 자동으로 정리해 드립니다</p>
+            <p className="text-[11px] md:text-[13px] text-slate-500 leading-relaxed">
+              말하듯 입력하면 AI가 날짜·시간·메모로 자동 분리 저장 →{" "}
+              일정 30분 전 핸드폰 알림 → 지난 일정은 빨간 표시로 한눈에 확인
+            </p>
             <button
               type="button"
-              onClick={() => {
-                window.location.href = "/login";
-              }}
-              className="text-[11px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+              onClick={() => { window.location.href = "/signup"; }}
+              className="mt-3 px-5 py-2 bg-emerald-500 text-white text-[12px] md:text-[13px] font-black rounded-xl hover:bg-emerald-600 transition-all active:scale-95"
             >
-              로그인
+              무료로 시작하기 →
             </button>
-          )}
-        </header>
+          </div>
+        )}
 
         {/* 데스크탑: 2컬럼 그리드 / 모바일: 단일 컬럼 */}
         <div className="md:grid md:grid-cols-[1.1fr_1fr] md:gap-8 md:items-start">
@@ -986,13 +1070,14 @@ const TodoPage = () => {
                       )}
                     </button>
                     <h3
-                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug w-full transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug flex-1 min-w-0 transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
                       style={{
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
-                        wordBreak: "break-all",
+                        wordBreak: "break-word",
+                        overflowWrap: "break-word",
                       }}
                     >
                       {todo.title}
