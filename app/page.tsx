@@ -1075,19 +1075,21 @@ const TodoPage = () => {
                         </svg>
                       )}
                     </button>
-                    <h3
-                      className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug flex-1 min-w-0 transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
-                      style={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        wordBreak: "break-word",
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {todo.title}
-                    </h3>
+                    <div className="flex-1 min-w-0">
+                      <h3
+                        className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          wordBreak: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        {todo.title}
+                      </h3>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
