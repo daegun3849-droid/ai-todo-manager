@@ -321,9 +321,15 @@ const TodoPage = () => {
       await navigator.serviceWorker.ready;
       const existing = await reg.pushManager.getSubscription();
       if (existing) await existing.unsubscribe();
+      // base64url → Uint8Array 변환 (브라우저 호환)
+      const rawKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+      const padding = "=".repeat((4 - (rawKey.length % 4)) % 4);
+      const base64 = (rawKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = atob(base64);
+      const keyArray = new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        applicationServerKey: keyArray,
       });
       const res = await fetch("/api/push-subscribe", {
         method: "POST",
