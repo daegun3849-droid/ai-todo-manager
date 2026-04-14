@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import confetti from "canvas-confetti";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
@@ -660,7 +661,13 @@ const TodoPage = () => {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Link
+              href="/docs"
+              className="text-[10px] md:text-[12px] font-bold text-slate-400 hover:text-emerald-600 underline-offset-2 hover:underline shrink-0"
+            >
+              문서
+            </Link>
             {user && (
               <button
                 type="button"
