@@ -344,7 +344,8 @@ const TodoPage = () => {
     } catch (err) {
       console.error("알림 설정 실패:", err);
       setNotifStatus("idle");
-      alert("알림 설정 중 오류가 발생했습니다.");
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`알림 설정 오류: ${msg}`);
     }
   };
 
@@ -648,17 +649,20 @@ const TodoPage = () => {
                 onClick={() => void handleEnableNotifications()}
                 disabled={notifStatus === "loading" || notifStatus === "granted"}
                 title={notifStatus === "granted" ? "알림 설정됨" : "일정 알림 받기"}
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-[18px] transition-all active:scale-90 shadow-sm ${
+                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[12px] font-bold transition-all active:scale-90 shadow-sm ${
                   notifStatus === "granted"
-                    ? "bg-emerald-50 text-emerald-500"
+                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
                     : notifStatus === "denied"
-                    ? "bg-red-50 text-red-400"
+                    ? "bg-red-50 text-red-400 border border-red-200"
                     : notifStatus === "loading"
                     ? "bg-slate-100 text-slate-400 animate-pulse"
-                    : "bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-500"
+                    : "bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 border border-slate-200"
                 }`}
               >
-                {notifStatus === "granted" ? "🔔" : notifStatus === "denied" ? "🔕" : "🔔"}
+                <span>{notifStatus === "granted" ? "🔔" : notifStatus === "denied" ? "🔕" : "🔔"}</span>
+                <span className="hidden md:inline">
+                  {notifStatus === "granted" ? "알림 ON" : notifStatus === "denied" ? "알림 차단" : "알림 설정"}
+                </span>
               </button>
             )}
             {user ? (
