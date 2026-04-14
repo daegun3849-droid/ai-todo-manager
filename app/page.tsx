@@ -258,6 +258,7 @@ const TodoPage = () => {
   const [quickSaving, setQuickSaving] = useState(false);
   const todayQuote = useMemo(() => getTodayQuote(), []);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -271,6 +272,7 @@ const TodoPage = () => {
         setUser({ id: u.id, email: u.email });
         void fetchTodos(u.id);
       }
+      setAuthLoaded(true);
     });
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "granted") setNotifStatus("granted");
@@ -685,8 +687,8 @@ const TodoPage = () => {
           </div>
         </header>
 
-        {/* 앱 소개 배너 (비로그인 상태에서만 표시) */}
-        {!user && (
+        {/* 앱 소개 배너 (인증 확인 후 비로그인 상태에서만 표시) */}
+        {authLoaded && !user && (
           <div className="mb-6 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-3xl p-6 border border-emerald-100">
             <p className="text-[13px] md:text-[15px] font-black text-emerald-700 mb-1">✨ AI가 내 일정을 자동으로 정리해 드립니다</p>
             <p className="text-[11px] md:text-[13px] text-slate-500 leading-relaxed">
@@ -1075,9 +1077,16 @@ const TodoPage = () => {
                         </svg>
                       )}
                     </button>
-                    <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex-1 min-w-0" style={{ overflow: "hidden" }}>
                       <h3
-                        className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug line-clamp-2 break-words transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                        className={`text-[15px] md:text-[17px] font-black tracking-tight leading-snug transition-all ${todo.is_completed ? "line-through text-slate-300" : "text-slate-800"}`}
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          wordBreak: "break-all",
+                        }}
                       >
                         {todo.title}
                       </h3>
