@@ -319,9 +319,9 @@ const TodoPage = () => {
         alert("알림이 차단되었습니다. 브라우저 설정에서 허용해 주세요.");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
+      await navigator.serviceWorker.register("/sw.js");
+      const swReg = await navigator.serviceWorker.ready;
+      const existing = await swReg.pushManager.getSubscription();
       if (existing) await existing.unsubscribe();
       // base64url → Uint8Array 변환 (브라우저 호환)
       const rawKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
@@ -329,7 +329,7 @@ const TodoPage = () => {
       const base64 = (rawKey + padding).replace(/-/g, "+").replace(/_/g, "/");
       const rawData = atob(base64);
       const keyArray = new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
-      const sub = await reg.pushManager.subscribe({
+      const sub = await swReg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: keyArray,
       });
