@@ -649,20 +649,18 @@ const TodoPage = () => {
                 onClick={() => void handleEnableNotifications()}
                 disabled={notifStatus === "loading" || notifStatus === "granted"}
                 title={notifStatus === "granted" ? "알림 설정됨" : "일정 알림 받기"}
-                className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-[12px] font-bold transition-all active:scale-90 shadow-sm ${
+                className={`px-3 py-2 rounded-2xl flex items-center gap-1.5 text-[12px] md:text-[13px] font-bold transition-all active:scale-95 ${
                   notifStatus === "granted"
-                    ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                    ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
                     : notifStatus === "denied"
-                    ? "bg-red-50 text-red-400 border border-red-200"
+                    ? "bg-red-100 text-red-500 border border-red-300"
                     : notifStatus === "loading"
                     ? "bg-slate-100 text-slate-400 animate-pulse"
-                    : "bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 border border-slate-200"
+                    : "bg-amber-50 text-amber-600 border border-amber-200"
                 }`}
               >
-                <span>{notifStatus === "granted" ? "🔔" : notifStatus === "denied" ? "🔕" : "🔔"}</span>
-                <span className="hidden md:inline">
-                  {notifStatus === "granted" ? "알림 ON" : notifStatus === "denied" ? "알림 차단" : "알림 설정"}
-                </span>
+                <span className="text-[15px]">{notifStatus === "granted" ? "🔔" : notifStatus === "denied" ? "🔕" : "🔔"}</span>
+                <span>{notifStatus === "granted" ? "알림ON" : notifStatus === "denied" ? "차단됨" : "알림"}</span>
               </button>
             )}
             {user ? (
