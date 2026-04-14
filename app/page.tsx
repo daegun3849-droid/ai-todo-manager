@@ -280,6 +280,46 @@ const TodoPage = () => {
     }
   }, []);
 
+  // 할 일 목록이 바뀔 때마다 브라우저 타이머 알림 등록
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    if (todos.length === 0) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const now = Date.now();
+
+    todos.forEach((todo) => {
+      if (todo.is_completed) return;
+
+      const startMs = todo.start_time ? new Date(todo.start_time).getTime() : 0;
+      const endMs = todo.end_time ? new Date(todo.end_time).getTime() : 0;
+
+      // 시작 30분 전 알림
+      const before30 = startMs - 30 * 60 * 1000;
+      if (before30 > now) {
+        timers.push(setTimeout(() => {
+          new Notification(`⏰ 30분 후 시작: ${todo.title}`, {
+            body: `곧 일정이 시작됩니다. 준비하세요!`,
+            icon: "/icons/icon-192x192.png",
+          });
+        }, before30 - now));
+      }
+
+      // 종료 시간 알림
+      if (endMs > now) {
+        timers.push(setTimeout(() => {
+          new Notification(`🔔 일정 종료: ${todo.title}`, {
+            body: "일정 시간이 지났습니다. 완료 처리해 주세요.",
+            icon: "/icons/icon-192x192.png",
+          });
+        }, endMs - now));
+      }
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [todos]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LOCAL_TEMPLATE_KEY);
@@ -303,49 +343,27 @@ const TodoPage = () => {
   };
 
   const handleEnableNotifications = async () => {
-    if (!user) {
-      alert("알림을 받으려면 먼저 로그인해 주세요.");
+    if (!("Notification" in window)) {
+      alert("이 브라우저는 알림을 지원하지 않습니다.");
       return;
     }
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      alert("이 브라우저는 푸시 알림을 지원하지 않습니다.");
+    if (notifStatus === "granted") {
+      alert("✅ 이미 알림이 설정되어 있습니다!\n일정 시작 30분 전과 종료 시간에 알림이 옵니다.");
       return;
     }
     setNotifStatus("loading");
     try {
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
+      if (permission === "granted") {
+        setNotifStatus("granted");
+        alert("✅ 알림 설정 완료!\n일정 시작 30분 전과 종료 시간에 정확히 알림이 옵니다.\n(앱을 열어두면 작동합니다)");
+      } else {
         setNotifStatus("denied");
-        alert("알림이 차단되었습니다. 브라우저 설정에서 허용해 주세요.");
-        return;
+        alert("알림이 차단되었습니다.\n브라우저 주소창 왼쪽 자물쇠 아이콘을 눌러 알림을 허용해 주세요.");
       }
-      await navigator.serviceWorker.register("/sw.js");
-      const swReg = await navigator.serviceWorker.ready;
-      const existing = await swReg.pushManager.getSubscription();
-      if (existing) await existing.unsubscribe();
-      // base64url → Uint8Array 변환 (브라우저 호환)
-      const rawKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-      const padding = "=".repeat((4 - (rawKey.length % 4)) % 4);
-      const base64 = (rawKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-      const rawData = atob(base64);
-      const keyArray = new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
-      const sub = await swReg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyArray,
-      });
-      const res = await fetch("/api/push-subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription: sub }),
-      });
-      if (!res.ok) throw new Error("서버 저장 실패");
-      setNotifStatus("granted");
-      alert("✅ 알림이 설정되었습니다! 일정 시작 30분 전과 시간이 지난 일정을 알려드립니다.");
     } catch (err) {
       console.error("알림 설정 실패:", err);
       setNotifStatus("idle");
-      const msg = err instanceof Error ? err.message : String(err);
-      alert(`알림 설정 오류: ${msg}`);
     }
   };
 
