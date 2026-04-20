@@ -49,7 +49,7 @@ const generateWithGroq = async (apiKey: string, prompt: string): Promise<string>
 
 const generateWithGoogle = async (prompt: string): Promise<string> => {
   const { text } = await generateText({
-    model: google('gemini-2.5-flash'),
+    model: google('gemini-1.5-flash'),
     prompt,
   });
   return text;

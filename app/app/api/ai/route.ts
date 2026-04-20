@@ -18,7 +18,7 @@ export const POST = async (req: NextRequest) => {
 분석할 텍스트: "${rawText}"`;
 
     const { text: aiResponse } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-1.5-flash'),
       prompt,
     });
 
