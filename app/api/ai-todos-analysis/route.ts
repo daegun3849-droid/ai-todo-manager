@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-2.5-flash'),
       prompt: `
         사용자 입력: "${prompt}"
         

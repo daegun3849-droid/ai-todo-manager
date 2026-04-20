@@ -18,8 +18,7 @@ export const POST = async (req: NextRequest) => {
 분석할 텍스트: "${rawText}"`;
 
     const { text: aiResponse } = await generateText({
-      // ✅ 새 API 키가 있으니 무적입니다! 원래 잘 되던 2.5-flash로 원상복구!
-      model: google('gemini-2.0-flash'), 
+      model: google('gemini-2.5-flash'),
       prompt,
     });
 
