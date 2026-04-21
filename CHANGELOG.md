@@ -21,7 +21,10 @@
 -
 
 ### 메모 / 이슈
--
+- AI 모델: `gemini-1.5-flash`로 통일 (코드 반영됨, 키는 기존 `GOOGLE_GENERATIVE_AI_API_KEY` 사용)
+- 터미널 `Invalid Refresh Token` 오류는 브라우저 쿠키/세션 문제로 판단, 앱 동작에는 문제 없음
+- Cursor IDE 채팅 모델은 `gemini-1.5-flash`가 아닌 다른 모델로 변경 (별개 이슈)
+
 ```
 
 **짝꿍 파일:** `AI플래너_개발일지.txt` — 여기는 **짧은 목록**, 일지는 **설명·맥락·대화 요약**을 길게.
