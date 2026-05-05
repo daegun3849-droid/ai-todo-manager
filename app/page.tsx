@@ -48,6 +48,18 @@ interface ParsedSchedule {
   end: string;
 }
 
+interface Routine {
+  id: string;
+  title: string;
+  emoji: string;
+  sort_order: number;
+}
+
+interface RoutineLog {
+  routine_id: string;
+  done_date: string;
+}
+
 const LOCAL_TEMPLATE_KEY = "ai-planner-user-templates-v1";
 
 const QUOTES = [
@@ -260,6 +272,10 @@ const TodoPage = () => {
   const todayQuote = useMemo(() => getTodayQuote(), []);
   const [notifStatus, setNotifStatus] = useState<"idle" | "granted" | "denied" | "loading">("idle");
   const [authLoaded, setAuthLoaded] = useState(false);
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routineLogs, setRoutineLogs] = useState<RoutineLog[]>([]);
+  const [newRoutineTitle, setNewRoutineTitle] = useState("");
+  const [routineEmoji, setRoutineEmoji] = useState("✅");
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -272,6 +288,7 @@ const TodoPage = () => {
       if (u) {
         setUser({ id: u.id, email: u.email });
         void fetchTodos(u.id);
+        void fetchRoutines(u.id);
       }
       setAuthLoaded(true);
     });
@@ -341,6 +358,75 @@ const TodoPage = () => {
       .eq("user_id", userId)
       .order("start_time", { ascending: true });
     if (data) setTodos(data as Todo[]);
+  };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const fetchRoutines = async (userId: string) => {
+    try {
+      const { data: rData } = await supabase
+        .from("routines")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true });
+      if (rData) setRoutines(rData as Routine[]);
+
+      const { data: lData } = await supabase
+        .from("routine_logs")
+        .select("routine_id, done_date")
+        .eq("user_id", userId)
+        .eq("done_date", todayStr);
+      if (lData) setRoutineLogs(lData as RoutineLog[]);
+    } catch (e) {
+      console.error("루틴 조회 실패:", e);
+    }
+  };
+
+  const handleAddRoutine = async () => {
+    if (!user || !newRoutineTitle.trim()) return;
+    try {
+      const { data } = await supabase
+        .from("routines")
+        .insert({ user_id: user.id, title: newRoutineTitle.trim(), emoji: routineEmoji, sort_order: routines.length })
+        .select()
+        .single();
+      if (data) setRoutines((prev) => [...prev, data as Routine]);
+      setNewRoutineTitle("");
+    } catch (e) {
+      console.error("루틴 추가 실패:", e);
+    }
+  };
+
+  const handleToggleRoutine = async (routineId: string) => {
+    if (!user) return;
+    const isDone = routineLogs.some((l) => l.routine_id === routineId && l.done_date === todayStr);
+    try {
+      if (isDone) {
+        await supabase
+          .from("routine_logs")
+          .delete()
+          .eq("routine_id", routineId)
+          .eq("done_date", todayStr);
+        setRoutineLogs((prev) => prev.filter((l) => !(l.routine_id === routineId && l.done_date === todayStr)));
+      } else {
+        await supabase
+          .from("routine_logs")
+          .insert({ routine_id: routineId, user_id: user.id, done_date: todayStr });
+        setRoutineLogs((prev) => [...prev, { routine_id: routineId, done_date: todayStr }]);
+      }
+    } catch (e) {
+      console.error("루틴 토글 실패:", e);
+    }
+  };
+
+  const handleDeleteRoutine = async (routineId: string) => {
+    try {
+      await supabase.from("routines").delete().eq("id", routineId);
+      setRoutines((prev) => prev.filter((r) => r.id !== routineId));
+      setRoutineLogs((prev) => prev.filter((l) => l.routine_id !== routineId));
+    } catch (e) {
+      console.error("루틴 삭제 실패:", e);
+    }
   };
 
   const handleEnableNotifications = async () => {
@@ -1019,6 +1105,102 @@ const TodoPage = () => {
                 </div>
               )}
             </div>
+
+            {/* 오늘의 루틴 섹션 */}
+            {user && (
+              <div className="bg-white rounded-[28px] p-5 md:p-7 shadow-sm border border-white mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[11px] md:text-[14px] font-black text-slate-400 uppercase tracking-widest">
+                      🔁 Today&apos;s Routine
+                    </p>
+                    {routines.length > 0 && (
+                      <p className="text-[11px] md:text-[13px] text-slate-400 mt-0.5">
+                        {routineLogs.filter((l) => l.done_date === todayStr).length}/{routines.length} 완료
+                        {" "}
+                        {routines.length > 0 && Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 완료율 바 */}
+                {routines.length > 0 && (
+                  <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
+                    <div
+                      className="bg-emerald-400 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* 루틴 목록 */}
+                {routines.length === 0 ? (
+                  <p className="text-center text-slate-300 font-bold text-[13px] py-4">
+                    아직 루틴이 없어요. 아래에서 추가해보세요!
+                  </p>
+                ) : (
+                  <div className="space-y-2 mb-4">
+                    {routines.map((routine) => {
+                      const isDone = routineLogs.some((l) => l.routine_id === routine.id && l.done_date === todayStr);
+                      return (
+                        <div
+                          key={routine.id}
+                          className={`flex items-center gap-3 rounded-2xl p-3 md:p-4 transition-all ${isDone ? "bg-emerald-50" : "bg-[#F8F9FD]"}`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleRoutine(routine.id)}
+                            className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[18px] md:text-[20px] shrink-0 border-2 transition-all active:scale-90 ${isDone ? "border-emerald-400 bg-emerald-400" : "border-slate-200 bg-white"}`}
+                          >
+                            {isDone ? "✓" : ""}
+                          </button>
+                          <span className="text-[17px] md:text-[20px] shrink-0">{routine.emoji}</span>
+                          <span className={`flex-1 text-[14px] md:text-[16px] font-bold transition-all ${isDone ? "line-through text-slate-300" : "text-slate-700"}`}>
+                            {routine.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteRoutine(routine.id)}
+                            className="text-slate-200 hover:text-rose-400 text-[18px] shrink-0 transition-all"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 루틴 추가 입력 */}
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={routineEmoji}
+                    onChange={(e) => setRoutineEmoji(e.target.value)}
+                    className="bg-[#F8F9FD] rounded-xl px-2 py-2.5 text-[18px] outline-none border-none"
+                  >
+                    {["✅","🏃","🙏","📖","💪","🧘","☀️","🥗","💊","🚿","🛌","🎯","🎵","🐾","🌿"].map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                  <input
+                    className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
+                    value={newRoutineTitle}
+                    onChange={(e) => setNewRoutineTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleAddRoutine(); }}
+                    placeholder="루틴 추가 (예: 기상, 기도, 운동)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleAddRoutine()}
+                    disabled={!newRoutineTitle.trim()}
+                    className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-[14px] active:scale-95 transition-all disabled:opacity-40"
+                  >
+                    추가
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               <p className="text-[10px] md:text-[13px] font-black text-slate-300 uppercase tracking-widest px-1">
