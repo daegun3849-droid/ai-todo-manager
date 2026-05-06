@@ -1196,22 +1196,41 @@ const TodoPage = () => {
 
                 {/* 루틴 추가 입력 */}
                 <div className="space-y-2 mt-2">
-                  <div className="flex gap-2">
-                    <select
-                      value={routineEmoji}
-                      onChange={(e) => setRoutineEmoji(e.target.value)}
-                      className="bg-[#F8F9FD] rounded-xl px-2 py-2.5 text-[18px] outline-none border-none"
-                    >
-                      {["✅","🏃","🙏","📖","💪","🧘","☀️","🥗","💊","🚿","🛌","🎯","🎵","🐾","🌿"].map((e) => (
-                        <option key={e} value={e}>{e}</option>
+                  {/* 이모지 선택 버튼 */}
+                  <div className="bg-[#F8F9FD] rounded-2xl p-2.5">
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1.5 px-1">이모지 선택</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        "☀️","🌙","⭐","🌅","🌄",
+                        "🏃","💪","🧘","🚴","🏋️","🤸","🧗","⚽","🏊","🚶",
+                        "📖","✏️","🎓","💡","🔬","📝","🖥️","📚","🧮","🗒️",
+                        "🥗","🍳","☕","🥛","🍎","🥦","🍱","🧃","🍵","🥤",
+                        "🙏","❤️","😌","🧠","💭","🌿","🕊️","✨","🌈","💫",
+                        "🎵","🎸","🎹","🎬","🎮","📺","📷","🎨","🎭","🎤",
+                        "🚿","🛌","💤","🛁","🪥","💆","🛀","😴","🌛","🧹",
+                        "💰","📈","💼","📅","✅","🎯","🔔","📌","🗓️","⏰",
+                      ].map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => setRoutineEmoji(e)}
+                          className={`text-[20px] w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 ${routineEmoji === e ? "bg-emerald-100 ring-2 ring-emerald-400" : "hover:bg-white"}`}
+                        >
+                          {e}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="w-10 h-10 flex items-center justify-center bg-[#F8F9FD] rounded-xl text-[22px] shrink-0">
+                      {routineEmoji}
+                    </div>
                     <input
                       className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
                       value={newRoutineTitle}
                       onChange={(e) => setNewRoutineTitle(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void handleAddRoutine(); }}
-                      placeholder="루틴 추가 (예: 기상, 기도, 운동)"
+                      placeholder="루틴 이름 입력 (예: 기상, 운동, 독서)"
                     />
                   </div>
                   <div className="flex gap-2 items-center">
