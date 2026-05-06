@@ -53,6 +53,8 @@ interface Routine {
   title: string;
   emoji: string;
   sort_order: number;
+  routine_time: string | null;
+  routine_end_time: string | null;
 }
 
 interface RoutineLog {
@@ -276,6 +278,8 @@ const TodoPage = () => {
   const [routineLogs, setRoutineLogs] = useState<RoutineLog[]>([]);
   const [newRoutineTitle, setNewRoutineTitle] = useState("");
   const [routineEmoji, setRoutineEmoji] = useState("✅");
+  const [routineTime, setRoutineTime] = useState("");
+  const [routineEndTime, setRoutineEndTime] = useState("");
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -387,11 +391,20 @@ const TodoPage = () => {
     try {
       const { data } = await supabase
         .from("routines")
-        .insert({ user_id: user.id, title: newRoutineTitle.trim(), emoji: routineEmoji, sort_order: routines.length })
+        .insert({
+          user_id: user.id,
+          title: newRoutineTitle.trim(),
+          emoji: routineEmoji,
+          sort_order: routines.length,
+          routine_time: routineTime || null,
+          routine_end_time: routineEndTime || null,
+        })
         .select()
         .single();
       if (data) setRoutines((prev) => [...prev, data as Routine]);
       setNewRoutineTitle("");
+      setRoutineTime("");
+      setRoutineEndTime("");
     } catch (e) {
       console.error("루틴 추가 실패:", e);
     }
@@ -1156,9 +1169,18 @@ const TodoPage = () => {
                             {isDone ? "✓" : ""}
                           </button>
                           <span className="text-[17px] md:text-[20px] shrink-0">{routine.emoji}</span>
-                          <span className={`flex-1 text-[14px] md:text-[16px] font-bold transition-all ${isDone ? "line-through text-slate-300" : "text-slate-700"}`}>
-                            {routine.title}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-[14px] md:text-[16px] font-bold transition-all ${isDone ? "line-through text-slate-300" : "text-slate-700"}`}>
+                              {routine.title}
+                            </span>
+                            {(routine.routine_time || routine.routine_end_time) && (
+                              <p className={`text-[11px] md:text-[13px] font-bold mt-0.5 ${isDone ? "text-slate-300" : "text-emerald-500"}`}>
+                                {routine.routine_time && `⏰ ${routine.routine_time}`}
+                                {routine.routine_time && routine.routine_end_time && " → "}
+                                {routine.routine_end_time && `${routine.routine_end_time}`}
+                              </p>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={() => void handleDeleteRoutine(routine.id)}
@@ -1173,31 +1195,54 @@ const TodoPage = () => {
                 )}
 
                 {/* 루틴 추가 입력 */}
-                <div className="flex gap-2 mt-2">
-                  <select
-                    value={routineEmoji}
-                    onChange={(e) => setRoutineEmoji(e.target.value)}
-                    className="bg-[#F8F9FD] rounded-xl px-2 py-2.5 text-[18px] outline-none border-none"
-                  >
-                    {["✅","🏃","🙏","📖","💪","🧘","☀️","🥗","💊","🚿","🛌","🎯","🎵","🐾","🌿"].map((e) => (
-                      <option key={e} value={e}>{e}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
-                    value={newRoutineTitle}
-                    onChange={(e) => setNewRoutineTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") void handleAddRoutine(); }}
-                    placeholder="루틴 추가 (예: 기상, 기도, 운동)"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleAddRoutine()}
-                    disabled={!newRoutineTitle.trim()}
-                    className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-[14px] active:scale-95 transition-all disabled:opacity-40"
-                  >
-                    추가
-                  </button>
+                <div className="space-y-2 mt-2">
+                  <div className="flex gap-2">
+                    <select
+                      value={routineEmoji}
+                      onChange={(e) => setRoutineEmoji(e.target.value)}
+                      className="bg-[#F8F9FD] rounded-xl px-2 py-2.5 text-[18px] outline-none border-none"
+                    >
+                      {["✅","🏃","🙏","📖","💪","🧘","☀️","🥗","💊","🚿","🛌","🎯","🎵","🐾","🌿"].map((e) => (
+                        <option key={e} value={e}>{e}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
+                      value={newRoutineTitle}
+                      onChange={(e) => setNewRoutineTitle(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void handleAddRoutine(); }}
+                      placeholder="루틴 추가 (예: 기상, 기도, 운동)"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 flex gap-1 items-center bg-[#F8F9FD] rounded-xl px-3 py-2">
+                      <span className="text-[11px] text-slate-400 font-bold shrink-0">시작</span>
+                      <input
+                        type="time"
+                        className="flex-1 bg-transparent text-[13px] md:text-[14px] font-bold text-slate-700 outline-none border-none"
+                        value={routineTime}
+                        onChange={(e) => setRoutineTime(e.target.value)}
+                      />
+                    </div>
+                    <span className="text-slate-300 font-bold">→</span>
+                    <div className="flex-1 flex gap-1 items-center bg-[#F8F9FD] rounded-xl px-3 py-2">
+                      <span className="text-[11px] text-rose-400 font-bold shrink-0">종료</span>
+                      <input
+                        type="time"
+                        className="flex-1 bg-transparent text-[13px] md:text-[14px] font-bold text-slate-700 outline-none border-none"
+                        value={routineEndTime}
+                        onChange={(e) => setRoutineEndTime(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddRoutine()}
+                      disabled={!newRoutineTitle.trim()}
+                      className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-[14px] active:scale-95 transition-all disabled:opacity-40 shrink-0"
+                    >
+                      추가
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
