@@ -1197,29 +1197,33 @@ const TodoPage = () => {
                 {/* 루틴 추가 입력 */}
                 <div className="space-y-2 mt-2">
                   {/* 이모지 선택 버튼 */}
-                  <div className="bg-[#F8F9FD] rounded-2xl p-2.5">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1.5 px-1">이모지 선택</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        "☀️","🌙","⭐","🌅","🌄",
-                        "🏃","💪","🧘","🚴","🏋️","🤸","🧗","⚽","🏊","🚶",
-                        "📖","✏️","🎓","💡","🔬","📝","🖥️","📚","🧮","🗒️",
-                        "🥗","🍳","☕","🥛","🍎","🥦","🍱","🧃","🍵","🥤",
-                        "🙏","❤️","😌","🧠","💭","🌿","🕊️","✨","🌈","💫",
-                        "🎵","🎸","🎹","🎬","🎮","📺","📷","🎨","🎭","🎤",
-                        "🚿","🛌","💤","🛁","🪥","💆","🛀","😴","🌛","🧹",
-                        "💰","📈","💼","📅","✅","🎯","🔔","📌","🗓️","⏰",
-                      ].map((e) => (
-                        <button
-                          key={e}
-                          type="button"
-                          onClick={() => setRoutineEmoji(e)}
-                          className={`text-[20px] w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 ${routineEmoji === e ? "bg-emerald-100 ring-2 ring-emerald-400" : "hover:bg-white"}`}
-                        >
-                          {e}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="bg-[#F8F9FD] rounded-2xl p-3">
+                    {[
+                      { label: "☀️ 아침·날씨", emojis: ["☀️","🌅","🌄","🌤️","🌧️","❄️","🌈","🌞","🌙","⭐"] },
+                      { label: "🏃 운동·스포츠", emojis: ["🚶","🏃","💪","🧘","🚴","🏋️","⚽","🏀","🏸","🎾","🏊","🤸","🥊","⛳","🛹"] },
+                      { label: "💻 공부·업무", emojis: ["💻","📖","📝","✏️","🎓","📚","🔬","📊","🗒️","🖥️"] },
+                      { label: "🥗 식사·건강", emojis: ["🥗","🍳","☕","🥛","🍎","💊","🥦","🍱","🫖","🧃"] },
+                      { label: "🙏 마음·힐링", emojis: ["🙏","❤️","😌","🌿","🕊️","✨","🧠","💭","😊","🫶"] },
+                      { label: "🎵 취미·여가", emojis: ["🎵","🎸","🎹","🎬","🎮","📺","🎨","📷","🎤","🎭"] },
+                      { label: "🛌 수면·위생", emojis: ["🚿","🛌","😴","💆","🛁","🪥","🧹","💤","🌛","😪"] },
+                      { label: "📧 일상·관리", emojis: ["📧","💌","📱","📞","🗓️","✅","🎯","💰","📈","⏰"] },
+                    ].map((cat) => (
+                      <div key={cat.label} className="mb-2 last:mb-0">
+                        <p className="text-[10px] font-black text-slate-300 tracking-widest mb-1 px-0.5">{cat.label}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {cat.emojis.map((e) => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => setRoutineEmoji(e)}
+                              className={`text-[20px] w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 ${routineEmoji === e ? "bg-emerald-100 ring-2 ring-emerald-400 scale-110" : "hover:bg-white"}`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex gap-2">
                     <div className="w-10 h-10 flex items-center justify-center bg-[#F8F9FD] rounded-xl text-[22px] shrink-0">
