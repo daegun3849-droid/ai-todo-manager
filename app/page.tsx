@@ -442,6 +442,22 @@ const TodoPage = () => {
     }
   };
 
+  const handleMoveRoutine = async (index: number, direction: "up" | "down") => {
+    const newRoutines = [...routines];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newRoutines.length) return;
+    [newRoutines[index], newRoutines[targetIndex]] = [newRoutines[targetIndex], newRoutines[index]];
+    const updated = newRoutines.map((r, i) => ({ ...r, sort_order: i }));
+    setRoutines(updated);
+    try {
+      await Promise.all(updated.map((r) =>
+        supabase.from("routines").update({ sort_order: r.sort_order }).eq("id", r.id)
+      ));
+    } catch (e) {
+      console.error("루틴 순서 변경 실패:", e);
+    }
+  };
+
   const handleEnableNotifications = async () => {
     if (!("Notification" in window)) {
       alert("이 브라우저는 알림을 지원하지 않습니다.");
@@ -1180,6 +1196,24 @@ const TodoPage = () => {
                                 {routine.routine_end_time && `${routine.routine_end_time}`}
                               </p>
                             )}
+                          </div>
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => void handleMoveRoutine(routines.indexOf(routine), "up")}
+                              disabled={routines.indexOf(routine) === 0}
+                              className="text-slate-300 hover:text-emerald-400 text-[13px] leading-none disabled:opacity-20 transition-all"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleMoveRoutine(routines.indexOf(routine), "down")}
+                              disabled={routines.indexOf(routine) === routines.length - 1}
+                              className="text-slate-300 hover:text-emerald-400 text-[13px] leading-none disabled:opacity-20 transition-all"
+                            >
+                              ▼
+                            </button>
                           </div>
                           <button
                             type="button"
