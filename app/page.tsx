@@ -1195,41 +1195,39 @@ const TodoPage = () => {
                 )}
 
                 {/* 추천 루틴 빠른 추가 */}
-                {routines.length === 0 && (
-                  <div className="mb-3">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2 px-1">💡 추천 루틴 빠른 추가</p>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { emoji: "☀️", title: "기상", time: "06:00", end: "06:10" },
-                        { emoji: "🙏", title: "아침기도", time: "06:10", end: "06:30" },
-                        { emoji: "🚿", title: "샤워", time: "06:30", end: "07:00" },
-                        { emoji: "🥗", title: "아침식사", time: "07:00", end: "07:30" },
-                        { emoji: "🏃", title: "운동", time: "07:30", end: "08:30" },
-                        { emoji: "📖", title: "독서", time: "21:00", end: "22:00" },
-                        { emoji: "💊", title: "영양제", time: "08:00", end: "08:05" },
-                        { emoji: "🛌", title: "취침", time: "23:00", end: "23:30" },
-                      ].map((r) => (
-                        <button
-                          key={r.title}
-                          type="button"
-                          onClick={async () => {
-                            if (!user) return;
-                            const { data } = await supabase.from("routines").insert({
-                              user_id: user.id, title: r.title, emoji: r.emoji,
-                              sort_order: routines.length, routine_time: r.time, routine_end_time: r.end,
-                            }).select().single();
-                            if (data) setRoutines((prev) => [...prev, data as Routine]);
-                          }}
-                          className="flex items-center gap-1.5 bg-[#F8F9FD] hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-xl px-3 py-2 text-[12px] md:text-[13px] font-bold text-slate-600 transition-all active:scale-95"
-                        >
-                          <span className="text-[16px]">{r.emoji}</span>
-                          {r.title}
-                          <span className="text-[10px] text-slate-300 font-normal">{r.time}</span>
-                        </button>
-                      ))}
-                    </div>
+                <div className="mb-3">
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2 px-1">💡 추천 루틴 빠른 추가</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { emoji: "☀️", title: "기상", time: "06:00", end: "06:10" },
+                      { emoji: "🙏", title: "아침기도", time: "06:10", end: "06:30" },
+                      { emoji: "🚿", title: "샤워", time: "06:30", end: "07:00" },
+                      { emoji: "🥗", title: "아침식사", time: "07:00", end: "07:30" },
+                      { emoji: "🏃", title: "운동", time: "07:30", end: "08:30" },
+                      { emoji: "📖", title: "독서", time: "21:00", end: "22:00" },
+                      { emoji: "💊", title: "영양제", time: "08:00", end: "08:05" },
+                      { emoji: "🛌", title: "취침", time: "23:00", end: "23:30" },
+                    ].filter((r) => !routines.some((existing) => existing.title === r.title)).map((r) => (
+                      <button
+                        key={r.title}
+                        type="button"
+                        onClick={async () => {
+                          if (!user) return;
+                          const { data } = await supabase.from("routines").insert({
+                            user_id: user.id, title: r.title, emoji: r.emoji,
+                            sort_order: routines.length, routine_time: r.time, routine_end_time: r.end,
+                          }).select().single();
+                          if (data) setRoutines((prev) => [...prev, data as Routine]);
+                        }}
+                        className="flex items-center gap-1.5 bg-[#F8F9FD] hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-xl px-3 py-2 text-[12px] md:text-[13px] font-bold text-slate-600 transition-all active:scale-95"
+                      >
+                        <span className="text-[16px]">{r.emoji}</span>
+                        {r.title}
+                        <span className="text-[10px] text-slate-300 font-normal">{r.time}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* 루틴 추가 입력 */}
                 <div className="space-y-2 mt-2">
