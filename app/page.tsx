@@ -920,6 +920,17 @@ const TodoPage = () => {
                       recognition.onstart = () => setIsListening(true);
                       recognition.onend = () => setIsListening(false);
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      recognition.onerror = (event: any) => {
+                        setIsListening(false);
+                        if (event.error === "not-allowed") {
+                          alert("마이크 권한이 필요해요.\n브라우저 주소창 왼쪽 🔒 아이콘 → 마이크 허용");
+                        } else if (event.error === "no-speech") {
+                          alert("음성이 감지되지 않았어요. 다시 눌러서 말해주세요.");
+                        } else {
+                          alert(`음성 인식 오류: ${event.error}`);
+                        }
+                      };
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       recognition.onresult = (event: any) => {
                         if (resultHandled) return;
                         resultHandled = true;
