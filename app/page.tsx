@@ -1186,7 +1186,7 @@ const TodoPage = () => {
                       return (
                         <div
                           key={routine.id}
-                          className={`flex items-center gap-3 rounded-2xl p-3 md:p-4 transition-all ${isDone ? "bg-emerald-50" : "bg-[#F8F9FD]"}`}
+                          className={`group flex items-center gap-3 rounded-2xl p-3 md:p-4 transition-all ${isDone ? "bg-emerald-50" : "bg-[#F8F9FD]"}`}
                         >
                           <button
                             type="button"
@@ -1235,7 +1235,7 @@ const TodoPage = () => {
                               </p>
                             )}
                           </div>
-                          <div className="flex flex-col gap-0.5 shrink-0">
+                          <div className="flex flex-col gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             <button
                               type="button"
                               onClick={() => void handleMoveRoutine(routines.indexOf(routine), "up")}
@@ -1256,7 +1256,7 @@ const TodoPage = () => {
                           <button
                             type="button"
                             onClick={() => void handleDeleteRoutine(routine.id)}
-                            className="text-slate-200 hover:text-rose-400 text-[18px] shrink-0 transition-all"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-200 hover:text-rose-400 text-[18px] shrink-0"
                           >
                             ×
                           </button>
