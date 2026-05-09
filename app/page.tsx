@@ -280,6 +280,7 @@ const TodoPage = () => {
   const [routineEmoji, setRoutineEmoji] = useState("✅");
   const [routineTime, setRoutineTime] = useState("");
   const [routineEndTime, setRoutineEndTime] = useState("");
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -439,6 +440,16 @@ const TodoPage = () => {
       setRoutineLogs((prev) => prev.filter((l) => l.routine_id !== routineId));
     } catch (e) {
       console.error("루틴 삭제 실패:", e);
+    }
+  };
+
+  const handleUpdateRoutineTime = async (routineId: string, routine_time: string, routine_end_time: string) => {
+    try {
+      await supabase.from("routines").update({ routine_time: routine_time || null, routine_end_time: routine_end_time || null }).eq("id", routineId);
+      setRoutines((prev) => prev.map((r) => r.id === routineId ? { ...r, routine_time: routine_time || null, routine_end_time: routine_end_time || null } : r));
+      setEditingRoutineId(null);
+    } catch (e) {
+      console.error("루틴 시간 수정 실패:", e);
     }
   };
 
@@ -1189,11 +1200,38 @@ const TodoPage = () => {
                             <span className={`text-[14px] md:text-[16px] font-bold transition-all ${isDone ? "line-through text-slate-300" : "text-slate-700"}`}>
                               {routine.title}
                             </span>
-                            {(routine.routine_time || routine.routine_end_time) && (
-                              <p className={`text-[11px] md:text-[13px] font-bold mt-0.5 ${isDone ? "text-slate-300" : "text-emerald-500"}`}>
-                                {routine.routine_time && `⏰ ${routine.routine_time}`}
-                                {routine.routine_time && routine.routine_end_time && " → "}
-                                {routine.routine_end_time && `${routine.routine_end_time}`}
+                            {editingRoutineId === routine.id ? (
+                              <div className="flex items-center gap-1 mt-1">
+                                <input
+                                  type="time"
+                                  defaultValue={routine.routine_time ?? ""}
+                                  id={`rt-start-${routine.id}`}
+                                  className="bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none w-24"
+                                />
+                                <span className="text-slate-300 text-[11px]">→</span>
+                                <input
+                                  type="time"
+                                  defaultValue={routine.routine_end_time ?? ""}
+                                  id={`rt-end-${routine.id}`}
+                                  className="bg-white border border-slate-200 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none w-24"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const s = (document.getElementById(`rt-start-${routine.id}`) as HTMLInputElement)?.value ?? "";
+                                    const e = (document.getElementById(`rt-end-${routine.id}`) as HTMLInputElement)?.value ?? "";
+                                    void handleUpdateRoutineTime(routine.id, s, e);
+                                  }}
+                                  className="text-[11px] font-black text-emerald-500 hover:text-emerald-600 px-1"
+                                >저장</button>
+                                <button type="button" onClick={() => setEditingRoutineId(null)} className="text-[11px] text-slate-300 hover:text-slate-500">취소</button>
+                              </div>
+                            ) : (
+                              <p
+                                className={`text-[11px] md:text-[13px] font-bold mt-0.5 cursor-pointer ${isDone ? "text-slate-300" : "text-emerald-500 hover:text-emerald-600"}`}
+                                onClick={() => setEditingRoutineId(routine.id)}
+                              >
+                                {routine.routine_time ? `⏰ ${routine.routine_time}${routine.routine_end_time ? ` → ${routine.routine_end_time}` : ""}` : "✏️ 시간 설정"}
                               </p>
                             )}
                           </div>
@@ -1237,9 +1275,11 @@ const TodoPage = () => {
                       { emoji: "🙏", title: "아침기도", time: "06:10", end: "06:30" },
                       { emoji: "🚿", title: "샤워", time: "06:30", end: "07:00" },
                       { emoji: "🥗", title: "아침식사", time: "07:00", end: "07:30" },
-                      { emoji: "🏃", title: "운동", time: "07:30", end: "08:30" },
+                      { emoji: "💊", title: "혈압약", time: "08:00", end: "08:05" },
+                      { emoji: "🧘", title: "명상", time: "08:10", end: "08:30" },
+                      { emoji: "🚶", title: "운동(걷기)", time: "09:00", end: "10:00" },
                       { emoji: "📖", title: "독서", time: "21:00", end: "22:00" },
-                      { emoji: "💊", title: "영양제", time: "08:00", end: "08:05" },
+                      { emoji: "🙏", title: "저녁기도", time: "22:00", end: "22:20" },
                       { emoji: "🛌", title: "취침", time: "23:00", end: "23:30" },
                     ].filter((r) => !routines.some((existing) => existing.title === r.title)).map((r) => (
                       <button
