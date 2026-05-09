@@ -903,6 +903,7 @@ const TodoPage = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      if (isListening) return;
                       if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
                         alert("이 브라우저는 음성 입력을 지원하지 않아요. Chrome을 사용해주세요.");
                         return;
@@ -914,12 +915,16 @@ const TodoPage = () => {
                       const recognition = new SR() as any;
                       recognition.lang = "ko-KR";
                       recognition.interimResults = false;
+                      recognition.maxAlternatives = 1;
+                      let resultHandled = false;
                       recognition.onstart = () => setIsListening(true);
                       recognition.onend = () => setIsListening(false);
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       recognition.onresult = (event: any) => {
+                        if (resultHandled) return;
+                        resultHandled = true;
                         const transcript = event.results[0][0].transcript;
-                        setRawInput((prev: string) => prev ? `${prev} ${transcript}` : transcript);
+                        setRawInput(transcript);
                       };
                       recognition.start();
                     }}
@@ -1439,7 +1444,7 @@ const TodoPage = () => {
               )}
 
         {filteredTodos.map((todo) => (
-          <div key={todo.id} className="bg-white rounded-[28px] shadow-sm border border-white overflow-hidden">
+          <div key={todo.id} className="group bg-white rounded-[28px] shadow-sm border border-white overflow-hidden">
             {editingId === todo.id ? (
               <div className="p-6 md:p-8 space-y-3 md:space-y-4">
                 <input
@@ -1525,7 +1530,7 @@ const TodoPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       type="button"
                       onClick={() => handleEditStart(todo)}
