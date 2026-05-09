@@ -510,6 +510,12 @@ const TodoPage = () => {
     }
   };
 
+  const formatRoutineTime = (t: string) => {
+    if (!t) return "";
+    const [h, m] = t.split(":").map(Number);
+    return m === 0 ? `${h}시` : `${h}시 ${String(m).padStart(2, "0")}분`;
+  };
+
   const formatDisplay = (isoStr: string) => {
     const d = new Date(isoStr);
     const month = d.getMonth() + 1;
@@ -1231,7 +1237,7 @@ const TodoPage = () => {
                                 className={`text-[11px] md:text-[13px] font-bold mt-0.5 cursor-pointer ${isDone ? "text-slate-300" : "text-emerald-500 hover:text-emerald-600"}`}
                                 onClick={() => setEditingRoutineId(routine.id)}
                               >
-                                {routine.routine_time ? `⏰ ${routine.routine_time}${routine.routine_end_time ? ` → ${routine.routine_end_time}` : ""}` : "✏️ 시간 설정"}
+                                {routine.routine_time ? `⏰ ${formatRoutineTime(routine.routine_time)}${routine.routine_end_time ? ` → ${formatRoutineTime(routine.routine_end_time)}` : ""}` : "✏️ 시간 설정"}
                               </p>
                             )}
                           </div>
@@ -1297,7 +1303,7 @@ const TodoPage = () => {
                       >
                         <span className="text-[16px]">{r.emoji}</span>
                         {r.title}
-                        <span className="text-[10px] text-slate-300 font-normal">{r.time}</span>
+                        <span className="text-[10px] text-slate-300 font-normal">{formatRoutineTime(r.time)}</span>
                       </button>
                     ))}
                   </div>
