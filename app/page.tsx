@@ -281,6 +281,8 @@ const TodoPage = () => {
   const [routineTime, setRoutineTime] = useState("");
   const [routineEndTime, setRoutineEndTime] = useState("");
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -891,12 +893,42 @@ const TodoPage = () => {
                     일정 저장은 로그인 후 가능합니다. 먼저 로그인해 주세요.
                   </p>
                 )}
-                <input
-                  className="w-full p-4 md:p-5 bg-[#F8F9FD] rounded-2xl text-[19px] md:text-[24px] font-black outline-none border-none"
-                  value={rawInput}
-                  onChange={(e) => setRawInput(e.target.value)}
-                  placeholder="일정 제목 또는 자연어 입력"
-                />
+                <div className="relative">
+                  <input
+                    className="w-full p-4 md:p-5 pr-14 bg-[#F8F9FD] rounded-2xl text-[19px] md:text-[24px] font-black outline-none border-none"
+                    value={rawInput}
+                    onChange={(e) => setRawInput(e.target.value)}
+                    placeholder="일정 제목 또는 자연어 입력"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+                        alert("이 브라우저는 음성 입력을 지원하지 않아요. Chrome을 사용해주세요.");
+                        return;
+                      }
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+                      if (!SR) return;
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const recognition = new SR() as any;
+                      recognition.lang = "ko-KR";
+                      recognition.interimResults = false;
+                      recognition.onstart = () => setIsListening(true);
+                      recognition.onend = () => setIsListening(false);
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      recognition.onresult = (event: any) => {
+                        const transcript = event.results[0][0].transcript;
+                        setRawInput((prev: string) => prev ? `${prev} ${transcript}` : transcript);
+                      };
+                      recognition.start();
+                    }}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 ${isListening ? "bg-rose-100 text-rose-500 animate-pulse" : "bg-white text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"}`}
+                    title="음성으로 입력"
+                  >
+                    🎤
+                  </button>
+                </div>
                 <textarea
                   className="w-full p-4 md:p-5 bg-[#F8F9FD] rounded-2xl text-[14px] md:text-[16px] text-slate-500 font-medium outline-none border-none resize-none whitespace-pre-line"
                   rows={3}
@@ -1311,39 +1343,16 @@ const TodoPage = () => {
 
                 {/* 루틴 추가 입력 */}
                 <div className="space-y-2 mt-2">
-                  {/* 이모지 선택 버튼 */}
-                  <div className="bg-[#F8F9FD] rounded-2xl p-3">
-                    {[
-                      { label: "☀️ 아침·날씨", emojis: ["☀️","🌅","🌄","🌤️","🌧️","❄️","🌈","🌞","🌙","⭐"] },
-                      { label: "🏃 운동·스포츠", emojis: ["🚶","🏃","💪","🧘","🚴","🏋️","⚽","🏀","🏸","🎾","🏊","🤸","🥊","⛳","🛹"] },
-                      { label: "💻 공부·업무", emojis: ["💻","📖","📝","✏️","🎓","📚","🔬","📊","🗒️","🖥️"] },
-                      { label: "🥗 식사·건강", emojis: ["🥗","🍳","☕","🥛","🍎","💊","🥦","🍱","🫖","🧃"] },
-                      { label: "🙏 마음·힐링", emojis: ["🙏","❤️","😌","🌿","🕊️","✨","🧠","💭","😊","🫶"] },
-                      { label: "🎵 취미·여가", emojis: ["🎵","🎸","🎹","🎬","🎮","📺","🎨","📷","🎤","🎭"] },
-                      { label: "🛌 수면·위생", emojis: ["🚿","🛌","😴","💆","🛁","🪥","🧹","💤","🌛","😪"] },
-                      { label: "📧 일상·관리", emojis: ["📧","💌","📱","📞","🗓️","✅","🎯","💰","📈","⏰"] },
-                    ].map((cat) => (
-                      <div key={cat.label} className="mb-2 last:mb-0">
-                        <p className="text-[10px] font-black text-slate-300 tracking-widest mb-1 px-0.5">{cat.label}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {cat.emojis.map((e) => (
-                            <button
-                              key={e}
-                              type="button"
-                              onClick={() => setRoutineEmoji(e)}
-                              className={`text-[20px] w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 ${routineEmoji === e ? "bg-emerald-100 ring-2 ring-emerald-400 scale-110" : "hover:bg-white"}`}
-                            >
-                              {e}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {/* 이모지 선택 버튼 - 접기/펼치기 */}
                   <div className="flex gap-2">
-                    <div className="w-10 h-10 flex items-center justify-center bg-[#F8F9FD] rounded-xl text-[22px] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker((v) => !v)}
+                      className="w-10 h-10 flex items-center justify-center bg-[#F8F9FD] hover:bg-emerald-50 rounded-xl text-[22px] shrink-0 transition-all active:scale-95 border-2 border-transparent hover:border-emerald-200"
+                      title="이모지 선택"
+                    >
                       {routineEmoji}
-                    </div>
+                    </button>
                     <input
                       className="flex-1 bg-[#F8F9FD] rounded-xl px-3 py-2.5 text-[13px] md:text-[15px] font-bold outline-none border-none placeholder:text-slate-300"
                       value={newRoutineTitle}
@@ -1352,6 +1361,37 @@ const TodoPage = () => {
                       placeholder="루틴 이름 입력 (예: 기상, 운동, 독서)"
                     />
                   </div>
+                  {/* 이모지 피커 패널 - 펼쳐질 때만 표시 */}
+                  {showEmojiPicker && (
+                    <div className="bg-[#F8F9FD] rounded-2xl p-3">
+                      {[
+                        { label: "☀️ 아침·날씨", emojis: ["☀️","🌅","🌙","🌈","⭐","🌤️"] },
+                        { label: "🏃 운동·스포츠", emojis: ["🚶","🏃","💪","🧘","🚴","⚽","🏀","🏸","🏊","🥊"] },
+                        { label: "💻 공부·업무", emojis: ["💻","📖","📝","🎓","📚","📊"] },
+                        { label: "🥗 식사·건강", emojis: ["🥗","🍳","☕","💊","🍎","🫖"] },
+                        { label: "🙏 마음·힐링", emojis: ["🙏","❤️","😌","🌿","✨","🧠"] },
+                        { label: "🎵 취미·여가", emojis: ["🎵","🎸","🎬","🎮","📺","🎨"] },
+                        { label: "🛌 수면·위생", emojis: ["🚿","🛌","😴","💆","🪥","🧹"] },
+                        { label: "📧 일상·관리", emojis: ["📧","📱","✅","🎯","💰","⏰"] },
+                      ].map((cat) => (
+                        <div key={cat.label} className="mb-2 last:mb-0">
+                          <p className="text-[10px] font-black text-slate-300 tracking-widest mb-1">{cat.label}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {cat.emojis.map((e) => (
+                              <button
+                                key={e}
+                                type="button"
+                                onClick={() => { setRoutineEmoji(e); setShowEmojiPicker(false); }}
+                                className={`text-[20px] w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 ${routineEmoji === e ? "bg-emerald-100 ring-2 ring-emerald-400" : "hover:bg-white"}`}
+                              >
+                                {e}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex gap-2 items-center">
                     <div className="flex-1 flex gap-1 items-center bg-[#F8F9FD] rounded-xl px-3 py-2">
                       <span className="text-[11px] text-slate-400 font-bold shrink-0">시작</span>
