@@ -33,6 +33,28 @@
 
 ---
 
+## 2026-05-09 (노트북·작업 마무리)
+
+### 완료
+- **음성 입력 수정**: 중복 방지용 `resultHandled` 제거 → 브라우저가 확정한 결과(`isFinal`)만 입력란에 반영 (커밋 `5e3e8e3`, `origin/main` 반영됨)
+- **빌드 확인**: 로컬에서 `npm run build` 성공 (Next.js 16.1.6)
+- **Git**: 작업 트리 깨끗함, 추가 커밋 없음
+
+### 내일 이어서 — 데이터·Vercel 체크리스트
+1. **사무실/다른 PC**: `git pull` → 필요 시 `npm install` → `npm run dev` (포트 충돌 시 `--port 3002`)
+2. **Vercel**: 대시보드 → Deployments → Production이 `main` 최신(위 커밋)인지 확인. 아니면 *Redeploy* 또는 자동 배포 대기
+3. **환경 변수** (Vercel → Settings → Environment Variables, Production에 로컬 `.env.local`과 같은 키):
+   - 필수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` 또는 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - AI: `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` (파싱·요약 경로에 사용)
+   - 선택: `NEXT_PUBLIC_APP_URL` (없으면 레이아웃 기본 URL 사용)
+   - Web Push/Cron만 쓸 때: `CRON_SECRET`, `VAPID_EMAIL`, `VAPID_PRIVATE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+4. **데이터**: 할 일·루틴·로그는 **Supabase DB**에 있음. Vercel 재배포로 사용자 데이터가 지워지지 않음.
+
+### 메모
+- 음성 입력: Chrome + HTTPS 권장, 주소창에서 마이크 허용
+
+---
+
 ## 2026-05-06 (노트북)
 
 ### 완료

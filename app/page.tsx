@@ -283,6 +283,9 @@ const TodoPage = () => {
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  /** 화면 상단 시계 — 클라이언트 마운트 후에만 표시(모바일 hydration 오류 방지) */
+  const [clockReady, setClockReady] = useState(false);
+  const [nowTick, setNowTick] = useState(() => new Date());
   const [editData, setEditData] = useState<EditData>({
     title: "",
     description: "",
@@ -303,6 +306,13 @@ const TodoPage = () => {
       if (Notification.permission === "granted") setNotifStatus("granted");
       else if (Notification.permission === "denied") setNotifStatus("denied");
     }
+  }, []);
+
+  useEffect(() => {
+    setNowTick(new Date());
+    setClockReady(true);
+    const id = window.setInterval(() => setNowTick(new Date()), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   // 할 일 목록이 바뀔 때마다 브라우저 타이머 알림 등록
@@ -777,15 +787,46 @@ const TodoPage = () => {
     });
   }, [todos, calendarDate]);
 
+  const clockDateLabel = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(nowTick);
+  const clockTimeLabel = new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(nowTick);
 
   return (
     <div className="min-h-screen bg-[#F8F9FD] font-sans text-slate-900">
+      {/* 오늘 날짜·시각 — 맨 위 고정(모바일에서 연도·시간 확인용) */}
+      <div className="sticky top-0 z-50 border-b border-slate-200/80 bg-[#F0F4FA]/95 backdrop-blur-md shadow-sm">
+        <div className="max-w-md md:max-w-6xl mx-auto px-4 md:px-10 py-2.5 md:py-3 flex flex-col items-center gap-0.5 sm:flex-row sm:justify-between sm:items-center text-center sm:text-left min-h-[3.25rem] sm:min-h-0 justify-center">
+          {clockReady ? (
+            <>
+              <p className="text-[12px] md:text-[14px] font-bold text-slate-600 leading-tight">{clockDateLabel}</p>
+              <p className="text-[15px] md:text-[17px] font-black tabular-nums text-emerald-700 tracking-tight">
+                {clockTimeLabel}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[12px] md:text-[14px] font-bold text-slate-400 leading-tight">불러오는 중…</p>
+              <p className="text-[15px] md:text-[17px] font-black tabular-nums text-slate-300 tracking-tight">--:--:--</p>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* 전체 최대 너비 컨테이너 */}
       <div className="max-w-md md:max-w-6xl mx-auto px-4 md:px-10 pb-20">
 
         {/* 헤더 */}
-        <header className="flex justify-between items-center py-6 md:py-10">
-          <div>
+        <header className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start py-6 md:py-10">
+          <div className="min-w-0">
             <h1 className="text-[30px] md:text-[48px] font-black text-[#1A202C] tracking-tighter italic uppercase">
               AI Planner
             </h1>
@@ -795,10 +836,10 @@ const TodoPage = () => {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex flex-nowrap items-center justify-end gap-2 md:gap-3 w-full sm:w-auto shrink-0 overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <Link
               href="/docs"
-              className="text-[10px] md:text-[12px] font-bold text-slate-400 hover:text-emerald-600 underline-offset-2 hover:underline shrink-0"
+              className="text-[10px] md:text-[12px] font-bold text-slate-400 hover:text-emerald-600 underline-offset-2 hover:underline whitespace-nowrap shrink-0"
             >
               문서
             </Link>
@@ -808,7 +849,7 @@ const TodoPage = () => {
                 onClick={() => void handleEnableNotifications()}
                 disabled={notifStatus === "loading" || notifStatus === "granted"}
                 title={notifStatus === "granted" ? "알림 설정됨" : "일정 알림 받기"}
-                className={`px-3 py-2 rounded-2xl flex items-center gap-1.5 text-[12px] md:text-[13px] font-bold transition-all active:scale-95 ${
+                className={`px-3 py-2 rounded-2xl flex items-center gap-1.5 text-[12px] md:text-[13px] font-bold transition-all active:scale-95 whitespace-nowrap shrink-0 ${
                   notifStatus === "granted"
                     ? "bg-emerald-100 text-emerald-700 border border-emerald-300"
                     : notifStatus === "denied"
@@ -830,7 +871,7 @@ const TodoPage = () => {
                     window.location.href = "/login";
                   })
                 }
-                className="text-[11px] md:text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-[11px] md:text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors whitespace-nowrap shrink-0 px-1 py-0.5 leading-none"
               >
                 로그아웃
               </button>
@@ -840,7 +881,7 @@ const TodoPage = () => {
                 onClick={() => {
                   window.location.href = "/login";
                 }}
-                className="text-[11px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                className="text-[11px] md:text-[14px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap shrink-0 leading-none"
               >
                 로그인
               </button>

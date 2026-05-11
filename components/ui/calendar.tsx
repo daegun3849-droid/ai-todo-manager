@@ -15,6 +15,14 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+/** 달력 날짜 셀의 data-day 값 — 서버/브라우저 로캘 차이로 인한 hydration 오류 방지 */
+const toDataDay = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
 function Calendar({
   className,
   classNames,
@@ -41,7 +49,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("ko-KR", { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -197,7 +205,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      data-day={toDataDay(day.date)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&
