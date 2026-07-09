@@ -33,6 +33,32 @@
 
 ---
 
+## 2026-07-09 (사무실)
+
+### 완료
+- **알림 소리(비프음) 추가**: `Web Audio API`로 일정 알림 시 비프음 자동 재생
+  - 시작 30분 전: 고음(880Hz) 1회
+  - 종료 시각: 저음(660Hz) → 2음(520Hz) 순서로 2회
+  - 탭이 열려 있고 알림 권한이 허용된 경우 작동
+- **음성으로 일정 등록 후 알림 연동**: 음성 입력 → 일정 저장 → 시간 되면 소리+팝업
+
+### 집에서 이어서 할 일
+1. `git pull origin main` → `npm install` → `npm run dev`
+2. **Supabase SQL 실행** (아직 안 했다면):
+   - Supabase 대시보드 → SQL Editor → `supabase/push-schema.sql` 내용 붙여넣기 → Run
+   - `push_subscriptions`, `push_notification_dedupe` 테이블 생성됨
+3. **Vercel 환경변수 확인** (Settings → Environment Variables):
+   - `SUPABASE_SERVICE_ROLE_KEY` 넣었는지 확인 (Cron이 DB 읽을 때 필요)
+   - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`, `CRON_SECRET`
+4. **실제 알림 테스트**: 로그인 → 🔔 허용 → 1~2분 뒤 종료되는 일정 만들어서 소리 확인
+
+### 메모
+- 비프음은 **탭이 열려 있을 때만** 남 (백그라운드·잠금 화면은 불가)
+- 모바일: 크롬 → **홈 화면에 추가** 권장 (알림 수신율 향상)
+- `playBeep()` 함수는 `app/page.tsx` 안에 있음 (약 320번째 줄)
+
+---
+
 ## 2026-05-09 (노트북·작업 마무리)
 
 ### 완료

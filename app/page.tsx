@@ -315,6 +315,38 @@ const TodoPage = () => {
     return () => window.clearInterval(id);
   }, []);
 
+  /** 알림과 함께 짧은 비프음 재생 (Web Audio API) */
+  const playBeep = (type: "before" | "end") => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = type === "before" ? 880 : 660;
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.8);
+      if (type === "end") {
+        // 종료는 두 번 울림
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.type = "sine";
+        osc2.frequency.value = 520;
+        gain2.gain.setValueAtTime(0.4, ctx.currentTime + 0.9);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.6);
+        osc2.start(ctx.currentTime + 0.9);
+        osc2.stop(ctx.currentTime + 1.6);
+      }
+    } catch (e) {
+      console.error("비프음 재생 실패:", e);
+    }
+  };
+
   // 할 일 목록이 바뀔 때마다 브라우저 타이머 알림 등록
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
@@ -330,7 +362,7 @@ const TodoPage = () => {
       const startMs = todo.start_time ? new Date(todo.start_time).getTime() : 0;
       const endMs = todo.end_time ? new Date(todo.end_time).getTime() : 0;
 
-      // 시작 30분 전 알림
+      // 시작 30분 전 알림 + 비프음
       const before30 = startMs - 30 * 60 * 1000;
       if (before30 > now) {
         timers.push(setTimeout(() => {
@@ -338,16 +370,18 @@ const TodoPage = () => {
             body: `곧 일정이 시작됩니다. 준비하세요!`,
             icon: "/icons/icon-192x192.png",
           });
+          playBeep("before");
         }, before30 - now));
       }
 
-      // 종료 시간 알림
+      // 종료 시간 알림 + 비프음
       if (endMs > now) {
         timers.push(setTimeout(() => {
           new Notification(`🔔 일정 종료: ${todo.title}`, {
             body: "일정 시간이 지났습니다. 완료 처리해 주세요.",
             icon: "/icons/icon-192x192.png",
           });
+          playBeep("end");
         }, endMs - now));
       }
     });
