@@ -897,6 +897,12 @@ const TodoPage = () => {
                 <span>{notifStatus === "granted" ? "알림ON" : notifStatus === "denied" ? "차단됨" : "알림"}</span>
               </button>
             )}
+            <a
+              href="/guide"
+              className="text-[11px] md:text-[13px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap shrink-0 px-1 py-0.5 leading-none"
+            >
+              사용법
+            </a>
             {user ? (
               <button
                 type="button"
