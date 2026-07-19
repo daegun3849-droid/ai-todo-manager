@@ -276,6 +276,7 @@ const TodoPage = () => {
   const [authLoaded, setAuthLoaded] = useState(false);
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [routineLogs, setRoutineLogs] = useState<RoutineLog[]>([]);
+  const [routineStreak, setRoutineStreak] = useState(0);
   const [newRoutineTitle, setNewRoutineTitle] = useState("");
   const [routineEmoji, setRoutineEmoji] = useState("✅");
   const [routineTime, setRoutineTime] = useState("");
@@ -428,6 +429,26 @@ const TodoPage = () => {
         .eq("user_id", userId)
         .eq("done_date", todayStr);
       if (lData) setRoutineLogs(lData as RoutineLog[]);
+
+      // 스트릭 계산: 최근 90일 로그에서 연속 달성 일수 산출
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const { data: histData } = await supabase
+        .from("routine_logs")
+        .select("done_date")
+        .eq("user_id", userId)
+        .gte("done_date", ninetyDaysAgo.toISOString().slice(0, 10));
+      if (histData) {
+        const doneDates = new Set(histData.map((l: { done_date: string }) => l.done_date));
+        let streak = 0;
+        for (let i = 0; i < 90; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          if (doneDates.has(d.toISOString().slice(0, 10))) streak++;
+          else break;
+        }
+        setRoutineStreak(streak);
+      }
     } catch (e) {
       console.error("루틴 조회 실패:", e);
     }
@@ -1298,10 +1319,20 @@ const TodoPage = () => {
                       <p className="text-[11px] md:text-[13px] text-slate-400 mt-0.5">
                         {routineLogs.filter((l) => l.done_date === todayStr).length}/{routines.length} 완료
                         {" "}
-                        {routines.length > 0 && Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%
+                        {Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%
                       </p>
                     )}
                   </div>
+                  {routineStreak > 0 && (
+                    <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-black ${
+                      routineStreak >= 30 ? "bg-amber-100 text-amber-600" :
+                      routineStreak >= 7  ? "bg-orange-100 text-orange-500" :
+                                           "bg-emerald-100 text-emerald-600"
+                    }`}>
+                      <span>{routineStreak >= 30 ? "🏆" : routineStreak >= 7 ? "🔥" : "✨"}</span>
+                      <span>{routineStreak}일 연속</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 완료율 바 */}
