@@ -898,6 +898,13 @@ const TodoPage = () => {
               </button>
             )}
             <a
+              href="/reset"
+              className="text-[11px] md:text-[13px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap shrink-0 px-1 py-0.5 leading-none"
+              title="삶 리셋 — 5가지 실천 원칙"
+            >
+              🔁 리셋
+            </a>
+            <a
               href="/guide"
               className="text-[11px] md:text-[13px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap shrink-0 px-1 py-0.5 leading-none"
             >
