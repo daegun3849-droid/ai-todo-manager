@@ -1317,9 +1317,7 @@ const TodoPage = () => {
                     </p>
                     {routines.length > 0 && (
                       <p className="text-[11px] md:text-[13px] text-slate-400 mt-0.5">
-                        {routineLogs.filter((l) => l.done_date === todayStr).length}/{routines.length} 완료
-                        {" "}
-                        {Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%
+                        {routineLogs.filter((l) => l.done_date === todayStr).length} / {routines.length} 완료
                       </p>
                     )}
                   </div>
@@ -1335,16 +1333,6 @@ const TodoPage = () => {
                   )}
                 </div>
 
-                {/* 완료율 바 */}
-                {routines.length > 0 && (
-                  <div className="w-full bg-slate-100 rounded-full h-2 mb-4">
-                    <div
-                      className="bg-emerald-400 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.round((routineLogs.filter((l) => l.done_date === todayStr).length / routines.length) * 100)}%` }}
-                    />
-                  </div>
-                )}
-
                 {/* 루틴 목록 */}
                 {routines.length === 0 ? (
                   <p className="text-center text-slate-300 font-bold text-[13px] py-4">
@@ -1359,12 +1347,17 @@ const TodoPage = () => {
                           key={routine.id}
                           className={`group flex items-center gap-3 rounded-2xl p-3 md:p-4 transition-all ${isDone ? "bg-emerald-50" : "bg-[#F8F9FD]"}`}
                         >
+                          {/* 네모 체크박스 */}
                           <button
                             type="button"
                             onClick={() => void handleToggleRoutine(routine.id)}
-                            className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[18px] md:text-[20px] shrink-0 border-2 transition-all active:scale-90 ${isDone ? "border-emerald-400 bg-emerald-400" : "border-slate-200 bg-white"}`}
+                            className={`w-6 h-6 md:w-7 md:h-7 rounded-md flex items-center justify-center shrink-0 border-2 transition-all active:scale-90 ${isDone ? "border-emerald-400 bg-emerald-400" : "border-slate-300 bg-white hover:border-emerald-300"}`}
                           >
-                            {isDone ? "✓" : ""}
+                            {isDone && (
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
                           </button>
                           <span className="text-[17px] md:text-[20px] shrink-0">{routine.emoji}</span>
                           <div className="flex-1 min-w-0">
@@ -1436,6 +1429,32 @@ const TodoPage = () => {
                     })}
                   </div>
                 )}
+
+                {/* 하단 진도율 바 */}
+                {routines.length > 0 && (() => {
+                  const doneCount = routineLogs.filter((l) => l.done_date === todayStr).length;
+                  const pct = Math.round((doneCount / routines.length) * 100);
+                  return (
+                    <div className="mb-5 bg-slate-50 rounded-2xl p-4">
+                      <div className="flex items-end justify-between mb-2">
+                        <span className="text-[12px] md:text-[13px] font-black text-slate-400">오늘 진도율</span>
+                        <span className={`text-[22px] md:text-[26px] font-black tabular-nums leading-none ${pct === 100 ? "text-emerald-500" : pct >= 50 ? "text-amber-500" : "text-slate-400"}`}>
+                          {pct}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className={`h-3 rounded-full transition-all duration-700 ${pct === 100 ? "bg-emerald-400" : pct >= 50 ? "bg-amber-400" : "bg-slate-400"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-bold mt-1.5 text-right">
+                        {doneCount} / {routines.length} 완료
+                        {pct === 100 && " 🎉"}
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* 추천 루틴 빠른 추가 */}
                 <div className="mb-3">
