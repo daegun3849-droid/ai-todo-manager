@@ -1461,16 +1461,25 @@ const TodoPage = () => {
                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2 px-1">💡 추천 루틴 빠른 추가</p>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { emoji: "☀️", title: "기상", time: "06:00", end: "06:10" },
-                      { emoji: "🙏", title: "아침기도", time: "06:10", end: "06:30" },
-                      { emoji: "🚿", title: "샤워", time: "06:30", end: "07:00" },
-                      { emoji: "🥗", title: "아침식사", time: "07:00", end: "07:30" },
-                      { emoji: "💊", title: "혈압약", time: "08:00", end: "08:05" },
-                      { emoji: "🧘", title: "명상", time: "08:10", end: "08:30" },
-                      { emoji: "🚶", title: "운동(걷기)", time: "09:00", end: "10:00" },
-                      { emoji: "📖", title: "독서", time: "21:00", end: "22:00" },
-                      { emoji: "🙏", title: "저녁기도", time: "22:00", end: "22:20" },
-                      { emoji: "🛌", title: "취침", time: "23:00", end: "23:30" },
+                      /* ── 새벽 ── */
+                      { emoji: "☀️", title: "기상", time: "04:30", end: "04:35" },
+                      { emoji: "🙏", title: "새벽기도", time: "04:35", end: "05:10" },
+                      { emoji: "📖", title: "성경묵상", time: "05:10", end: "05:30" },
+                      { emoji: "🧘", title: "명상", time: "05:30", end: "05:45" },
+                      { emoji: "💪", title: "운동", time: "05:45", end: "06:30" },
+                      { emoji: "🚿", title: "샤워·정리", time: "06:30", end: "07:00" },
+                      /* ── 아침 ── */
+                      { emoji: "✍️", title: "마음채움카드", time: "07:00", end: "07:15" },
+                      { emoji: "📝", title: "하루 할 일 작성", time: "07:15", end: "07:30" },
+                      { emoji: "🥗", title: "아침식사", time: "07:30", end: "08:00" },
+                      /* ── 낮 ── */
+                      { emoji: "🎯", title: "집중 업무", time: "09:00", end: "12:00" },
+                      { emoji: "😌", title: "여유·나만의 시간", time: "12:30", end: "13:00" },
+                      /* ── 저녁 ── */
+                      { emoji: "❓", title: "\"모르는 것이 뭐지?\" 성찰", time: "20:00", end: "20:15" },
+                      { emoji: "📋", title: "내일 계획 작성", time: "20:15", end: "20:30" },
+                      { emoji: "🙏", title: "저녁기도·감사", time: "21:30", end: "22:00" },
+                      { emoji: "🛌", title: "취침", time: "22:00", end: "22:10" },
                     ].filter((r) => !routines.some((existing) => existing.title === r.title)).map((r) => (
                       <button
                         key={r.title}
